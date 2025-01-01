@@ -76,11 +76,11 @@ jobs:
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
 
-            ldflags="$ldflags -lm -O2 -s PURE_WASI=1 -s ALLOW_MEMORY_GROWTH=1 -s TOTAL_MEMORY=67108864 -s TOTAL_STACK=8388608 -s MAXIMUM_MEMORY=4294967296 -Wno-almost-asm"
+            ldflags="$ldflags -lm -O2 -s STANDALONE_WASM --no-entry -s EXPORTED_FUNCTIONS=['_main'] -s WASM=1 -s WASI_SUPPORT=1 -s MAX_MEMORY=4GB -s INITIAL_MEMORY=64MB -s STACK_SIZE=8MB -s ALLOW_MEMORY_GROWTH=1 -Wno-almost-asm"
 
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
 
-            cppflags='-lm -s PURE_WASI=1 -s ALLOW_MEMORY_GROWTH=1 -s TOTAL_MEMORY=67108864 -s TOTAL_STACK=8388608 -s MAXIMUM_MEMORY=4294967296 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
+            cppflags='-lm -s STANDALONE_WASM --no-entry -s EXPORTED_FUNCTIONS=['_main'] -s WASM=1 -s WASI_SUPPORT=1 -s MAX_MEMORY=4GB -s INITIAL_MEMORY=64MB -s STACK_SIZE=8MB -s ALLOW_MEMORY_GROWTH=1 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           EOF
 
       - name: Install Perl static wasm
@@ -100,11 +100,15 @@ jobs:
 
           # Build the WASI executable with memory settings
           emcc -o perlwasi perlmain.o libperl.a `cat ext.libs` -lm \
-            -s PURE_WASI=1 \
+            --target=wasm32-wasi \
+            -s STANDALONE_WASM \
+            --no-entry \
+            -s EXPORTED_FUNCTIONS=['_main'] \
+            -s WASM=1 \
+            -s MAX_MEMORY=4294967296 \
+            -s INITIAL_MEMORY=67108864 \
+            -s STACK_SIZE=8388608 \
             -s ALLOW_MEMORY_GROWTH=1 \
-            -s TOTAL_MEMORY=67108864 \
-            -s TOTAL_STACK=8388608 \
-            -s MAXIMUM_MEMORY=4294967296 \
             -O2 -Wno-almost-asm
 
       - name: Test with Wasmtime
@@ -115,21 +119,27 @@ jobs:
           mkdir -p testdir/lib
           cp -r prefix/lib/perl5 testdir/lib/
           
-          # Basic perl version test
-          wasmtime run --wasm-features all --dir testdir perlwasi -- -v
+          # Basic perl version test with full WASI capabilities
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- -v
           
           # Test basic perl functionality
-          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'print "Hello from WASI Perl!\n"'
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- -e 'print "Hello from WASI Perl!\n"'
           
           # Test file system access
           echo "print 'File content: ' . <STDIN>" > testdir/test.pl
           echo "test content" > testdir/input.txt
-          wasmtime run --wasm-features all --dir testdir perlwasi -- /test.pl < testdir/input.txt
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- /test.pl < testdir/input.txt
           
           # Test core modules
-          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use Cwd; print Cwd::getcwd(), "\n"'
-          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use File::Glob; print glob("/*.pl"), "\n"'
-          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use Time::HiRes qw(time); printf("%.6f\n", time())'
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- -e 'use Cwd; print Cwd::getcwd(), "\n"'
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- -e 'use File::Glob; print glob("/*.pl"), "\n"'
+          wasmtime run --wasm-features all --dir=. --dir=/tmp \
+            --env="PERL5LIB=/lib/perl5" perlwasi -- -e 'use Time::HiRes qw(time); printf("%.6f\n", time())'
 
       - name: Artifacts
         uses: actions/upload-artifact@v4
