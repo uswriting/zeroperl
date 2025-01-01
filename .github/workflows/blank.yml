@@ -1,10 +1,11 @@
 name: perlwasi
 
 on: workflow_dispatch
+
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
-  WASI_SDK_VERSION: 20.0
-  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${{env.WASI_SDK_VERSION}}/wasi-sdk-${{env.WASI_SDK_VERSION}}-linux.tar.gz
+  WASI_SDK_VERSION: "20.0"
+  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20.0/wasi-sdk-20.0-linux.tar.gz
 
 jobs:
   build-perl-wasi:
@@ -16,8 +17,8 @@ jobs:
         run: |
           mkdir wasi-sdk
           curl -L ${{ env.WASI_SDK_URL }} | tar -xzf - --strip-components=1 -C wasi-sdk
-          echo "export WASI_SDK_PATH=$(pwd)/wasi-sdk" >> $GITHUB_ENV
-          echo "export PATH=$WASI_SDK_PATH/bin:$PATH" >> $GITHUB_ENV
+          echo "WASI_SDK_PATH=$(pwd)/wasi-sdk" >> $GITHUB_ENV
+          echo "PATH=${{ env.WASI_SDK_PATH }}/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install Native Perl for Bootstrapping
         run: |
@@ -49,7 +50,7 @@ jobs:
             d_setjmp="define"
             d_longdbl="undef"
             d_readdir="define"
-            EOF
+          EOF
 
           sh ./Configure -des -Darchname=wasi -Dprefix=$PWD/prefix \
             -Dcc=clang -Dld=wasm-ld -Dhintfile=hints/wasi.sh \
@@ -71,5 +72,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perl-wasi-binaries
-          path: |
-            wasm/prefix
+          path: wasm/prefix
