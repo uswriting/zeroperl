@@ -70,7 +70,7 @@ jobs:
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
 
-            ldflags="$ldflags -lm -O2 -s PURE_WASI -Wno-almost-asm -s ERROR_ON_UNDEFINED_SYMBOLS=0"
+            ldflags="$ldflags -lm -O2 -s STANDALONE_WASM -s USE_MAIN_ARGS=1 -s EXPORTED_FUNCTIONS=['_main'] -s EXPORTED_RUNTIME_METHODS=['callMain','ccall'] -Wno-almost-asm -s ERROR_ON_UNDEFINED_SYMBOLS=0"
 
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
 
@@ -84,26 +84,60 @@ jobs:
           cp hintfile_wasm.sh wasm/hints/emscripten.sh
           
           cd wasm 
-          emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+          emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=/usr/local/perl -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           
           ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
           emmake make utilities PERL="$PWD/../native/miniperl"
           emmake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           chmod +x ./perl
-          emmake make install
+          emmake make install DESTDIR=$PWD/destdir
 
-          # Build WASI version without embedding files
-          emcc -o perl.wasm -s PURE_WASI -lm -O2 -Wno-almost-asm -s ERROR_ON_UNDEFINED_SYMBOLS=0 perlmain.o lib/auto/mro/mro.a lib/auto/Devel/Peek/Peek.a lib/auto/File/DosGlob/DosGlob.a lib/auto/File/Glob/Glob.a lib/auto/Sys/Syslog/Syslog.a lib/auto/Sys/Hostname/Hostname.a lib/auto/PerlIO/via/via.a lib/auto/PerlIO/mmap/mmap.a lib/auto/PerlIO/encoding/encoding.a lib/auto/B/B.a lib/auto/attributes/attributes.a lib/auto/Unicode/Normalize/Normalize.a lib/auto/Unicode/Collate/Collate.a lib/auto/threads/threads.a lib/auto/threads/shared/shared.a lib/auto/IPC/SysV/SysV.a lib/auto/re/re.a lib/auto/Digest/MD5/MD5.a lib/auto/Digest/SHA/SHA.a lib/auto/SDBM_File/SDBM_File.a lib/auto/Math/BigInt/FastCalc/FastCalc.a lib/auto/Data/Dumper/Dumper.a lib/auto/I18N/Langinfo/Langinfo.a lib/auto/Time/HiRes/HiRes.a lib/auto/Time/Piece/Piece.a lib/auto/IO/IO.a lib/auto/Socket/Socket.a lib/auto/Hash/Util/FieldHash/FieldHash.a lib/auto/Hash/Util/Util.a lib/auto/Filter/Util/Call/Call.a lib/auto/POSIX/POSIX.a lib/auto/Encode/Unicode/Unicode.a lib/auto/Encode/Encode.a lib/auto/Encode/JP/JP.a lib/auto/Encode/KR/KR.a lib/auto/Encode/EBCDIC/EBCDIC.a lib/auto/Encode/CN/CN.a lib/auto/Encode/Symbol/Symbol.a lib/auto/Encode/Byte/Byte.a lib/auto/Encode/TW/TW.a lib/auto/Compress/Raw/Zlib/Zlib.a lib/auto/Compress/Raw/Bzip2/Bzip2.a lib/auto/MIME/Base64/Base64.a lib/auto/Cwd/Cwd.a lib/auto/Storable/Storable.a lib/auto/List/Util/Util.a lib/auto/Fcntl/Fcntl.a lib/auto/Opcode/Opcode.a libperl.a `cat ext.libs` -lm
+          # Build WASI version
+          emcc -o perl.wasm \
+            -s STANDALONE_WASM \
+            -s USE_MAIN_ARGS=1 \
+            -s EXPORTED_FUNCTIONS=['_main'] \
+            -s EXPORTED_RUNTIME_METHODS=['callMain','ccall'] \
+            -lm -O2 -Wno-almost-asm -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
+            perlmain.o lib/auto/mro/mro.a lib/auto/Devel/Peek/Peek.a \
+            lib/auto/File/DosGlob/DosGlob.a lib/auto/File/Glob/Glob.a \
+            lib/auto/Sys/Syslog/Syslog.a lib/auto/Sys/Hostname/Hostname.a \
+            lib/auto/PerlIO/via/via.a lib/auto/PerlIO/mmap/mmap.a \
+            lib/auto/PerlIO/encoding/encoding.a lib/auto/B/B.a \
+            lib/auto/attributes/attributes.a lib/auto/Unicode/Normalize/Normalize.a \
+            lib/auto/Unicode/Collate/Collate.a lib/auto/threads/threads.a \
+            lib/auto/threads/shared/shared.a lib/auto/IPC/SysV/SysV.a \
+            lib/auto/re/re.a lib/auto/Digest/MD5/MD5.a lib/auto/Digest/SHA/SHA.a \
+            lib/auto/SDBM_File/SDBM_File.a lib/auto/Math/BigInt/FastCalc/FastCalc.a \
+            lib/auto/Data/Dumper/Dumper.a lib/auto/I18N/Langinfo/Langinfo.a \
+            lib/auto/Time/HiRes/HiRes.a lib/auto/Time/Piece/Piece.a \
+            lib/auto/IO/IO.a lib/auto/Socket/Socket.a \
+            lib/auto/Hash/Util/FieldHash/FieldHash.a lib/auto/Hash/Util/Util.a \
+            lib/auto/Filter/Util/Call/Call.a lib/auto/POSIX/POSIX.a \
+            lib/auto/Encode/Unicode/Unicode.a lib/auto/Encode/Encode.a \
+            lib/auto/Encode/JP/JP.a lib/auto/Encode/KR/KR.a \
+            lib/auto/Encode/EBCDIC/EBCDIC.a lib/auto/Encode/CN/CN.a \
+            lib/auto/Encode/Symbol/Symbol.a lib/auto/Encode/Byte/Byte.a \
+            lib/auto/Encode/TW/TW.a lib/auto/Compress/Raw/Zlib/Zlib.a \
+            lib/auto/Compress/Raw/Bzip2/Bzip2.a lib/auto/MIME/Base64/Base64.a \
+            lib/auto/Cwd/Cwd.a lib/auto/Storable/Storable.a \
+            lib/auto/List/Util/Util.a lib/auto/Fcntl/Fcntl.a \
+            lib/auto/Opcode/Opcode.a libperl.a `cat ext.libs` -lm
+
+      - name: Prepare test environment
+        run: |
+          mkdir -p testenv/usr/local/perl
+          cp -r wasm/destdir/usr/local/perl/* testenv/usr/local/perl/
+          mkdir -p testenv/test/dir1
+          echo "Hello from file1" > testenv/test/dir1/file1.txt
+          echo "Hello from file2" > testenv/test/dir1/file2.txt
 
       - name: Test WASI filesystem
         run: |
-          mkdir -p test/dir1
-          echo "Hello from file1" > test/dir1/file1.txt
-          echo "Hello from file2" > test/dir1/file2.txt
-          
-          # Test file system access using wasmtime
-          wasmtime run --dir=. wasm/perl.wasm -- -e 'use File::Find; finddepth(sub { print "$File::Find::name\n" if -f }, "test/dir1");'
-          wasmtime run --dir=. wasm/perl.wasm -- -e 'open my $fh, "<", "test/dir1/file1.txt" or die $!; print while <$fh>;'
+          # Test file system access using wasmtime with mapped directories
+          wasmtime run --dir=. --dir=/usr/local/perl=testenv/usr/local/perl wasm/perl.wasm -- -I/usr/local/perl/lib/5.40.0 -I/usr/local/perl/lib/5.40.0/x86_64-linux -e 'print join(":", @INC),"\n"'
+          wasmtime run --dir=. --dir=/usr/local/perl=testenv/usr/local/perl wasm/perl.wasm -- -I/usr/local/perl/lib/5.40.0 -I/usr/local/perl/lib/5.40.0/x86_64-linux -e 'use File::Find; finddepth(sub { print "$File::Find::name\n" if -f }, "testenv/test/dir1");'
+          wasmtime run --dir=. --dir=/usr/local/perl=testenv/usr/local/perl wasm/perl.wasm -- -I/usr/local/perl/lib/5.40.0 -I/usr/local/perl/lib/5.40.0/x86_64-linux -e 'open my $fh, "<", "testenv/test/dir1/file1.txt" or die $!; print while <$fh>;'
 
       - name: Artifacts
         uses: actions/upload-artifact@v4
@@ -111,3 +145,4 @@ jobs:
           path: |
             wasm/config.h
             wasm/perl.wasm
+            testenv/usr/local/perl/**/*
