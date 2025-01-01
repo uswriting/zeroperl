@@ -1,76 +1,134 @@
-name: perlwasi
+name: perlemscripten
 
 on: workflow_dispatch
-
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
-  WASI_SDK_VERSION: "20"
-  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sdk-20.0-linux.tar.gz
+  EMSCRIPTEN_VERSION: 3.1.73
 
 jobs:
-  build-perl-wasi:
-    runs-on: ubuntu-22.04
+  perlemscripten:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v13
+        with:
+          version: ${{env.EMSCRIPTEN_VERSION}}
 
-      - name: Setup WASI SDK
-        run: |
-          mkdir wasi-sdk
-          curl -L ${{ env.WASI_SDK_URL }} | tar -xzf - --strip-components=1 -C wasi-sdk
-          WASI_SDK_PATH=$(pwd)/wasi-sdk
-          echo "WASI_SDK_PATH=$WASI_SDK_PATH" >> $GITHUB_ENV
-          echo "PATH=$WASI_SDK_PATH/bin:$PATH" >> $GITHUB_ENV
+      - name: Setup Wasmtime
+        uses: bytecodealliance/actions/wasmtime/setup@v1
 
-      - name: Install Native Perl for Bootstrapping
+      - name: Install Perl static native
+        shell: bash
         run: |
-          mkdir native && curl -L ${{ env.URLPERL }} | tar -xzf - --strip-components=1 --directory=native
+          mkdir native && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=native
           cd native
-          sh ./Configure -des -Dprefix=$PWD/prefix -Duseshrplib
+          sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           make
           make install
 
-      - name: Configure Perl for WASI
+      - name: Heredoc
         run: |
-          mkdir wasm && curl -L ${{ env.URLPERL }} | tar -xzf - --strip-components=1 --directory=wasm
-          cd wasm
-          cat <<'EOF' > hints/wasi.sh
-            # Custom hints file for WASI
+          cat <<'EOF' > hintfile_wasm.sh
             usemymalloc="n"
-            uselargefiles="undef"
-            usenm="undef"
-            cc="clang --sysroot=$WASI_SDK_PATH/share/wasi-sysroot"
-            ld="wasm-ld --sysroot=$WASI_SDK_PATH/share/wasi-sysroot"
-            cppflags="-D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L"
-            ccflags="-O2"
-            ldflags="-lm"
-            libpth="$WASI_SDK_PATH/share/wasi-sysroot/lib/wasm32-wasi"
-            optimize="-O2"
-            dlsrc="none"
-            d_gethostbyname_r="undef"
-            d_gethostbyaddr_r="undef"
-            d_setjmp="define"
-            d_longdbl="undef"
-            d_readdir="define"
+            uselargefiles="n"
+            usenm='undef'
+
+            usemallocwrap="define"
+            d_procselfexe='undef'
+            d_dlopen='undef'
+            
+            d_setrgid='undef'
+            d_setruid='undef'
+            d_setproctitle='undef'
+            d_malloc_size='undef'
+            d_malloc_good_size='undef'
+            d_fdclose='undef'
+
+            d_clearenv='undef'
+            d_cuserid='undef'
+            d_eaccess='undef'
+            d_getspnam='undef'
+            d_msgctl='undef'
+            d_msgget='undef'
+            d_msgrcv='undef'
+            d_msgsnd='undef'
+            d_semget='undef'
+            d_semop='undef'
+            d_shmat='undef'
+            d_shmctl='undef'
+            d_shmdt='undef'
+            d_shmget='undef'
+            d_syscall='undef'
+
+            d_killpg='undef'
+            d_pause='undef'
+            d_sigsetjmp='undef'
+
+            d_wait4='undef'
+            d_waitpid='undef'
+            d_vfork='undef'
+            d_pseudofork='undef'
+
+            i_pthread='undef'
+            d_pthread_atfork='undef'
+            d_pthread_attr_setscope='undef'
+            d_pthread_yield='undef'
+
+            ldflags="$ldflags -lm -O2 -s PURE_WASI=1 -Wno-almost-asm"
+
+            ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
+
+            cppflags='-lm -s PURE_WASI=1 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           EOF
 
-          sh ./Configure -des -Darchname=wasi -Dprefix=$PWD/prefix \
-            -Dcc=clang -Dld=wasm-ld -Dhintfile=hints/wasi.sh \
-            -Dusethreads -Duseshrplib -Uuse64bitint -Uuse64bitall \
-            -Dsysroot=$WASI_SDK_PATH/share/wasi-sysroot -Uversiononly
+      - name: Install Perl static wasm
+        shell: bash
+        run: |
+          mkdir wasm && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
+          cp hintfile_wasm.sh wasm/hints/emscripten.sh
           
-      - name: Build and Install Perl for WASI
+          cd wasm 
+          emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+          
+          ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
+          emmake make utilities PERL="$PWD/../native/miniperl"
+          emmake make       RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+          chmod +x ./perl
+          emmake make install
+
+          # Build the basic WASI executable without embedding
+          emcc -o perlwasi -s PURE_WASI=1 -lm -O2 -Wno-almost-asm perlmain.o libperl.a `cat ext.libs` -lm
+
+      - name: Test with Wasmtime
+        shell: bash
         run: |
           cd wasm
-          make
-          make install
+          # Create test directories
+          mkdir -p testdir/lib
+          cp -r prefix/lib/perl5 testdir/lib/
+          
+          # Basic perl version test
+          wasmtime run --mapdir /::./testdir perlwasi -- -v
+          
+          # Test basic perl functionality
+          wasmtime run --mapdir /::./testdir perlwasi -- -e 'print "Hello from WASI Perl!\n"'
+          
+          # Test file system access
+          echo "print 'File content: ' . <STDIN>" > testdir/test.pl
+          echo "test content" > testdir/input.txt
+          wasmtime run --mapdir /::./testdir perlwasi -- /test.pl < testdir/input.txt
+          
+          # Test core modules
+          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use Cwd; print Cwd::getcwd(), "\n"'
+          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use File::Glob; print glob("/*.pl"), "\n"'
+          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use Time::HiRes qw(time); printf("%.6f\n", time())'
 
-      - name: Test WASI Binary
-        run: |
-          cd wasm/prefix/bin
-          wasmtime --dir=. ./perl -e 'print "Hello from WASI Perl!\n";'
-
-      - name: Upload Artifacts
+      - name: Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: perl-wasi-binaries
-          path: wasm/prefix
+          path: |
+            wasm/config.h
+            wasm/perlwasi
+            wasm/testdir/**/*
