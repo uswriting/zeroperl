@@ -76,11 +76,11 @@ jobs:
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
 
-            ldflags="$ldflags -lm -O2 -s PURE_WASI=1 -Wno-almost-asm"
+            ldflags="$ldflags -lm -O2 -s PURE_WASI=1 -s ALLOW_MEMORY_GROWTH=1 -s TOTAL_MEMORY=67108864 -s TOTAL_STACK=8388608 -s MAXIMUM_MEMORY=4294967296 -Wno-almost-asm"
 
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
 
-            cppflags='-lm -s PURE_WASI=1 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
+            cppflags='-lm -s PURE_WASI=1 -s ALLOW_MEMORY_GROWTH=1 -s TOTAL_MEMORY=67108864 -s TOTAL_STACK=8388608 -s MAXIMUM_MEMORY=4294967296 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           EOF
 
       - name: Install Perl static wasm
@@ -94,12 +94,18 @@ jobs:
           
           ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
           emmake make utilities PERL="$PWD/../native/miniperl"
-          emmake make       RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+          emmake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           chmod +x ./perl
           emmake make install
 
-          # Build the basic WASI executable without embedding
-          emcc -o perlwasi -s PURE_WASI=1 -lm -O2 -Wno-almost-asm perlmain.o libperl.a `cat ext.libs` -lm
+          # Build the WASI executable with memory settings
+          emcc -o perlwasi perlmain.o libperl.a `cat ext.libs` -lm \
+            -s PURE_WASI=1 \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s TOTAL_MEMORY=67108864 \
+            -s TOTAL_STACK=8388608 \
+            -s MAXIMUM_MEMORY=4294967296 \
+            -O2 -Wno-almost-asm
 
       - name: Test with Wasmtime
         shell: bash
@@ -110,20 +116,20 @@ jobs:
           cp -r prefix/lib/perl5 testdir/lib/
           
           # Basic perl version test
-          wasmtime run --mapdir /::./testdir perlwasi -- -v
+          wasmtime run --wasm-features all --dir testdir perlwasi -- -v
           
           # Test basic perl functionality
-          wasmtime run --mapdir /::./testdir perlwasi -- -e 'print "Hello from WASI Perl!\n"'
+          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'print "Hello from WASI Perl!\n"'
           
           # Test file system access
           echo "print 'File content: ' . <STDIN>" > testdir/test.pl
           echo "test content" > testdir/input.txt
-          wasmtime run --mapdir /::./testdir perlwasi -- /test.pl < testdir/input.txt
+          wasmtime run --wasm-features all --dir testdir perlwasi -- /test.pl < testdir/input.txt
           
           # Test core modules
-          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use Cwd; print Cwd::getcwd(), "\n"'
-          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use File::Glob; print glob("/*.pl"), "\n"'
-          wasmtime run --mapdir /::./testdir perlwasi -- -e 'use Time::HiRes qw(time); printf("%.6f\n", time())'
+          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use Cwd; print Cwd::getcwd(), "\n"'
+          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use File::Glob; print glob("/*.pl"), "\n"'
+          wasmtime run --wasm-features all --dir testdir perlwasi -- -e 'use Time::HiRes qw(time); printf("%.6f\n", time())'
 
       - name: Artifacts
         uses: actions/upload-artifact@v4
