@@ -17,8 +17,9 @@ jobs:
         run: |
           mkdir wasi-sdk
           curl -L ${{ env.WASI_SDK_URL }} | tar -xzf - --strip-components=1 -C wasi-sdk
-          echo "WASI_SDK_PATH=$(pwd)/wasi-sdk" >> $GITHUB_ENV
-          echo "PATH=${{ env.WASI_SDK_PATH }}/bin:$PATH" >> $GITHUB_ENV
+          WASI_SDK_PATH=$(pwd)/wasi-sdk
+          echo "WASI_SDK_PATH=$WASI_SDK_PATH" >> $GITHUB_ENV
+          echo "PATH=$WASI_SDK_PATH/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install Native Perl for Bootstrapping
         run: |
