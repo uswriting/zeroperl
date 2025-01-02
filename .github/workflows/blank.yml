@@ -1,3 +1,6 @@
+name: perlemscripten
+
+on: workflow_dispatch
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
   EMSCRIPTEN_VERSION: 3.1.73
@@ -41,7 +44,7 @@ jobs:
           cp -r exiftool/prefix/* wasm/
 
           cd wasm
-          emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Syslog.a lib/auto/Socket/Socket.a lib/auto/Hash/Util/FieldHash/FieldHash.a lib/auto/Hash/Util/Util.a lib/auto/Filter/Util/Call/Call.a lib/auto/POSIX/POSIX.a lib/auto/Encode/Unicode/Unicode.a lib/auto/Encode/Encode.a lib/auto/Encode/JP/JP.a lib/auto/Encode/KR/KR.a lib/auto/Encode/EBCDIC/EBCDIC.a lib/auto/Encode/CN/CN.a lib/auto/Encode/Symbol/Symbol.a lib/auto/Encode/Byte/Byte.a lib/auto/Encode/TW/TW.a lib/auto/Compress/Raw/Zlib/Zlib.a lib/auto/Compress/Raw/Bzip2/Bzip2.a lib/auto/MIME/Base64/Base64.a lib/auto/Cwd/Cwd.a lib/auto/Storable/Storable.a lib/auto/List/Util/Util.a lib/auto/Fcntl/Fcntl.a lib/auto/Opcode/Opcode.a"
+          emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
 
           ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
           emmake make utilities PERL="$PWD/../native/miniperl"
