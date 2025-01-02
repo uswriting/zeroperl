@@ -27,13 +27,14 @@ jobs:
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           make
           make install
+          chmod +x ./prefix/bin/perl
 
       - name: Download and Embed ExifTool
         shell: bash
         run: |
           mkdir exiftool && curl -L https://exiftool.org/Image-ExifTool-${{ env.EXIFTOOL_VERSION }}.tar.gz | tar -xzf - --strip-components=1 --directory=exiftool
           cd exiftool
-          perl Makefile.PL
+          ../native/prefix/bin/perl Makefile.PL
           make
           make install DESTDIR=$PWD/prefix
           cd ..
