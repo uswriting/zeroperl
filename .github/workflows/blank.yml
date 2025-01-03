@@ -161,7 +161,7 @@ jobs:
             -Dhostperl=$PWD/../native/miniperl \
             -Dhostgenerate=$PWD/../native/generate_uudmap \
             -Dprefix=$PWD/prefix \
-            -Dstatic_ext="Archive/Zip Compress/Raw/Zlib Compress/Raw/Bzip2 Digest/MD5 Digest/SHA Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+            -Dstatic_ext="Compress/Raw/Zlib Compress/Raw/Bzip2 Digest/MD5 Digest/SHA Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
 
           ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
           emmake make utilities PERL="$PWD/../native/miniperl"
