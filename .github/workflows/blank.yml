@@ -127,7 +127,13 @@ jobs:
           cp hintfile_wasm.sh wasm/hints/emscripten.sh
           
           cd wasm
-
+          # Ensure the correct directories are created
+          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
+    
+          # Copy the required files
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/ 
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasm/
+         
           emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           
           ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
@@ -135,16 +141,6 @@ jobs:
           emmake make       RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           chmod +x ./perl # export EMMAKEN_JUST_CONFIGURE=1 before emmake make
           emmake make install
-
-          # Install ExifTool and Dependencies (wasm)
-          export PATH="$PWD/prefix/bin:$PATH"
-          curl -L https://www.exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf -
-          cd Image-ExifTool-13.11
-          perl Makefile.PL
-          make
-          make test
-          make install PREFIX="$PWD/../prefix"
-          
           node ./prefix/bin/perl -e 'print("hello world\n");'
 
           find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
