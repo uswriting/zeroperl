@@ -147,8 +147,8 @@ jobs:
           mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
     
           # Copy the required files
-          cp -r ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/
-          cp ../native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* ./prefix/lib/perl5/site_perl/5.40.0/wasm/
+          cp -r ./native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/
+          cp ./native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* ./prefix/lib/perl5/site_perl/5.40.0/wasm/
           
           cd wasm
          
