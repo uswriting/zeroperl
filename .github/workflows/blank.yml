@@ -149,14 +149,9 @@ jobs:
           chmod +x ./perl # export EMMAKEN_JUST_CONFIGURE=1 before emmake make
           emmake make install
           node ./prefix/bin/perl -e 'print("hello world\n");'
-          
-          # Ensure the correct directories are created
-          mkdir -p wasm/prefix/lib/perl5/site_perl/5.40.0/wasm
-          mkdir -p wasm/prefix/lib/perl5/5.40.0/wasm
-    
-          # Copy the required files
-          cp -r ../native/prefix/lib/perl5/site_perl/5.40.0/Image wasm/prefix/lib/perl5/site_perl/5.40.0/
-          cp ../native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* wasm/prefix/lib/perl5/site_perl/5.40.0/
+
+          cp -r ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/
+          cp ../native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* ./prefix/lib/perl5/site_perl/5.40.0/wasm/
 
           find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           find ./prefix
