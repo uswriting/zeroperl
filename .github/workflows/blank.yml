@@ -33,10 +33,10 @@ jobs:
           export PATH="$PWD/native/prefix/bin:$PATH"
           curl -L https://www.exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf -
           cd Image-ExifTool-13.11
-          perl Makefile.PL
+          ./prefix/bin/perl Makefile.PL
           make
           make test
-          make install PREFIX="$PWD/../native/prefix"
+          make install
 
           # Install dependencies via cpanm
           #cpanm --local-lib="$PWD/../native/prefix" \
@@ -138,17 +138,9 @@ jobs:
         shell: bash
         run: |
 
-          
           mkdir wasm && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           
           cp hintfile_wasm.sh wasm/hints/emscripten.sh
-
-          # Ensure the correct directories are created
-          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
-    
-          # Copy the required files
-          cp -r ./native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/
-          cp ./native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* ./prefix/lib/perl5/site_perl/5.40.0/wasm/
           
           cd wasm
          
