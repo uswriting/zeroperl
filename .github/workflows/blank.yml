@@ -4,6 +4,7 @@ on: workflow_dispatch
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
   EMSCRIPTEN_VERSION: 3.1.73
+  EXIFTOOL_VERSION: 13.11
 
 jobs:
 
@@ -31,13 +32,11 @@ jobs:
       - name: Download and Embed ExifTool
         shell: bash
         run: |
-          mkdir exiftool && curl -L https://exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf - --strip-components=1 --directory=exiftool 
+          mkdir exiftool && curl -L https://exiftool.org/Image-ExifTool-${{ env.EXIFTOOL_VERSION }}.tar.gz | tar -xzf - --strip-components=1 --directory=exiftool
           cd exiftool
           ../native/prefix/bin/perl Makefile.PL
           make
           make install DESTDIR=$PWD/prefix
-          # Verify installation
-          ls -l prefix/bin/exiftool
           cd ..
 
       - name: Heredoc
