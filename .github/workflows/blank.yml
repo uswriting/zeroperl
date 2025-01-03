@@ -137,7 +137,11 @@ jobs:
       - name: Install Perl static wasm
         shell: bash
         run: |
-
+        
+          # Ensure the correct directories are created
+          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
+    
+          # Copy the required files
           cp -r ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/
           cp ../native/prefix/lib/perl5/site_perl/5.40.0/File/RandomAccess.* ./prefix/lib/perl5/site_perl/5.40.0/wasm/
           
