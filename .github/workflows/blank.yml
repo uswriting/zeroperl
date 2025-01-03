@@ -26,18 +26,16 @@ jobs:
           make
           make install
           #./prefix/bin/perl ./prefix/bin/cpanm --help || true
-
       - name: Install ExifTool and Dependencies
         shell: bash
         run: |
           export PATH="$PWD/native/prefix/bin:$PATH"
           curl -L https://www.exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf -
           cd Image-ExifTool-13.11
-          ./prefix/bin/perl Makefile.PL
+          perl Makefile.PL
           make
           make test
-          make install
-
+          make install PREFIX="$PWD/../native/prefix"
           # Install dependencies via cpanm
           #cpanm --local-lib="$PWD/../native/prefix" \
           #  Archive::Zip Compress::Raw::Lzma Compress::Zlib Digest::MD5 Digest::SHA \
@@ -54,11 +52,9 @@ jobs:
             # Because of this and other issues I've had with symlinks, I'm switching to hard links instead.
             # (Another possible fix might be to fix the Makefile steps so that they use the -o option, but this solution works for now.)
             #TODO Later: In NODEFS, does Perl's -e test work correctly on symlinks? (./t/TEST was having issues detecting ./t/perl, a symlink to ./perl).
-
             usemymalloc="n"
             uselargefiles="n"
             usenm='undef'
-
             usemallocwrap="define"
             d_procselfexe='undef'
             d_dlopen='undef'
@@ -69,9 +65,7 @@ jobs:
             d_malloc_size='undef'
             d_malloc_good_size='undef'
             d_fdclose='undef'
-
             #d_prctl='define' # hm, it's present in the libc source, but Configure shows Emscripten error output? -> for now, assume it's not available
-
             # It *looks* like shm*, sem* and a few others exist in Emscripten's libc,
             # but I'm not sure why Configure isn't detecting them. But at the moment I'm not going
             # to worry about them, and just not build IPC-SysV.
@@ -90,8 +84,6 @@ jobs:
             d_shmdt='undef'
             d_shmget='undef'
             d_syscall='undef'
-
-
             # Emscripten does not have signals support (documentation isn't 100% clear on this? but see "$EMSCRIPTEN/system/include/libc/setjmp.h")
             # but if you do: grep -r 'Calling stub instead of' "$EMSCRIPTEN"
             # you'll see the unsupported stuff (as of 1.37.35):
@@ -104,45 +96,43 @@ jobs:
             d_sigsetjmp='undef' # this also disables Perl's use of siglongjmp() (see config.h)
             # the others either aren't used by Perl (like siginterrupt) or can't be Configure'd (like kill)
             #TODO Later: currently I've disabled Perl's use of signal() by patching the source - maybe there's a better way?
-
             # Emscripten doesn't actually have these either (see "$EMSCRIPTEN/src/library.js")
             d_wait4='undef'
             d_waitpid='undef'
             d_vfork='undef'
             d_pseudofork='undef'
-
             i_pthread='undef'
             d_pthread_atfork='undef'
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
-
             #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
             #selectminbits='32'
             #alignbytes='4'
-
-
             ldflags="$ldflags -lm -O2 -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -Wno-almost-asm -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s WASM=1 -s SINGLE_FILE=1"
-
             # the following is needed for the "musl" libc provided by emscripten to provide all functions
             # from Makefile.emcc / Makefile.micro  -DSTANDARD_C -DPERL_USE_SAFE_PUTENV
             # disable this warning, I don't think we need it - TODO: how to append this after -Wall?
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE  -DNO_MATHOMS -Wno-null-pointer-arithmetic"
-
             # Configure apparently changes "-s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2" to "-s -s" when converting ccflags to cppflags
             # this is the current hack/workaround: copy cppflags from config.sh and fix it (TODO Later: better way would be to patch Configure)
             cppflags='-lm -s ERROR_ON_UNDEFINED_SYMBOLS=0 -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           
           EOF
-
       - name: Install Perl static wasm
         shell: bash
         run: |
-
+          
           mkdir wasm && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           
           cp hintfile_wasm.sh wasm/hints/emscripten.sh
           
           cd wasm
+          # Ensure the correct directories are created
+          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
+    
+          # Copy the required files
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/ 
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasm/
          
           emconfigure sh ./Configure -sde -Dinc_version_list=none -Ddlsrc=none -Dloclibpth='' -Dglibpth='' -Dlns='/bin/ln' -Dman1dir=none -Dman3dir=none -Dosname="emscripten" -Darchname="wasm" -Dosvers="2.0.5" -Dmyhostname='localhost' -Dmydomain='.local' -Dperladmin=root -Dcc=emcc -Dld=emcc -Dar=$(which emar) -Dranlib=$(which emranlib) -Doptimize="-O2" -Dlibs='-lm' -Dhintfile=emscripten -Dsysroot=$(dirname $(which emcc))/system -Dhostperl=$PWD/../native/miniperl -Dhostgenerate=$PWD/../native/generate_uudmap -Dprefix=$PWD/prefix -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           
