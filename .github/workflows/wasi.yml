@@ -169,7 +169,7 @@ jobs:
           cd wasm
           
           # Prepare configure arguments for WASI
-          $REPO_ROOT/wasiconfigure sh ./Configure -sde \
+          sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
             -Dloclibpth='' \
