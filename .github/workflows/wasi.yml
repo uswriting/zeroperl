@@ -1,0 +1,226 @@
+name: perlwasi
+
+on: workflow_dispatch
+
+env:
+  URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
+  WASI_SDK_VERSION: 20.0
+  # Adjust WASI_SDK_VERSION if you want a different version. For reference:
+  # https://github.com/WebAssembly/wasi-sdk/releases
+
+jobs:
+  perlwasi:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install WASI SDK
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget xz-utils wasmtime
+          
+          # Download and unpack WASI SDK to /opt/wasi-sdk
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}-linux.tar.gz
+          tar xzf wasi-sdk-${WASI_SDK_VERSION}-linux.tar.gz
+          sudo mv wasi-sdk-${WASI_SDK_VERSION} /opt/wasi-sdk
+          
+          # Make available in the current job
+          echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
+          echo "PATH=\$PATH:/opt/wasi-sdk/bin" >> $GITHUB_ENV
+
+      - name: Confirm clang version
+        shell: bash
+        run: |
+          clang --version || true
+          /opt/wasi-sdk/bin/clang --version || true
+
+      - name: Install Perl (native, static)
+        shell: bash
+        run: |
+          # We'll build a "native" perl in order to generate host tools that help cross-compile.
+          # This is not the final WASI build—just a standard local build for the host.
+          
+          mkdir native
+          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=native
+          cd native
+          
+          # Configure for a native static build (on Ubuntu). We keep dynamic loading disabled for simplicity.
+          sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
+
+          make
+          make install
+
+      - name: Install ExifTool and Dependencies (native)
+        shell: bash
+        run: |
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          curl -L https://www.exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf -
+          cd Image-ExifTool-13.11
+          perl Makefile.PL
+          make
+          make test
+          make install PREFIX="$PWD/../native/prefix"
+
+      - name: Create WASI hint file
+        shell: bash
+        run: |
+          cat <<'EOF' > hintfile_wasi.sh
+            #TODO: almost all of the known_extensions are still being built. we should probably exclude some of them! (see also nonxs_ext)
+            #noextensions='IPC/SysV'
+            # Here's a fun one: apparently, when building perlmini.c, emcc notices that it's a symlink to perl.c, and compiles to perl.o
+            # (because there is no -o option), so the final perl ends up thinking it's miniperl (shown in "perl -v", @INC doesn't work, etc.).
+            # Because of this and other issues I've had with symlinks, I'm switching to hard links instead.
+            # (Another possible fix might be to fix the Makefile steps so that they use the -o option, but this solution works for now.)
+            #TODO Later: In NODEFS, does Perl's -e test work correctly on symlinks? (./t/TEST was having issues detecting ./t/perl, a symlink to ./perl).
+            usemymalloc="n"
+            uselargefiles="n"
+            usenm='undef'
+            usemallocwrap="define"
+            d_procselfexe='undef'
+            d_dlopen='undef'
+            
+            d_setrgid='undef'
+            d_setruid='undef'
+            d_setproctitle='undef'
+            d_malloc_size='undef'
+            d_malloc_good_size='undef'
+            d_fdclose='undef'
+            #d_prctl='define' # hm, it's present in the libc source, but Configure shows Emscripten error output? -> for now, assume it's not available
+            # It *looks* like shm*, sem* and a few others exist in Emscripten's libc,
+            # but I'm not sure why Configure isn't detecting them. But at the moment I'm not going
+            # to worry about them, and just not build IPC-SysV.
+            d_clearenv='undef'
+            d_cuserid='undef'
+            d_eaccess='undef'
+            d_getspnam='undef'
+            d_msgctl='undef'
+            d_msgget='undef'
+            d_msgrcv='undef'
+            d_msgsnd='undef'
+            d_semget='undef'
+            d_semop='undef'
+            d_shmat='undef'
+            d_shmctl='undef'
+            d_shmdt='undef'
+            d_shmget='undef'
+            d_syscall='undef'
+            # Emscripten does not have signals support (documentation isn't 100% clear on this? but see "$EMSCRIPTEN/system/include/libc/setjmp.h")
+            # but if you do: grep -r 'Calling stub instead of' "$EMSCRIPTEN"
+            # you'll see the unsupported stuff (as of 1.37.35):
+            # signal() sigaction() sigprocmask() __libc_current_sigrtmin __libc_current_sigrtmax kill() killpg() siginterrupt() raise() pause()
+            # plus: "Calling longjmp() instead of siglongjmp()"
+            #d_sigaction='undef'
+            #d_sigprocmask='undef'
+            d_killpg='undef'
+            d_pause='undef'
+            d_sigsetjmp='undef' # this also disables Perl's use of siglongjmp() (see config.h)
+            # the others either aren't used by Perl (like siginterrupt) or can't be Configure'd (like kill)
+            #TODO Later: currently I've disabled Perl's use of signal() by patching the source - maybe there's a better way?
+            # Emscripten doesn't actually have these either (see "$EMSCRIPTEN/src/library.js")
+            d_wait4='undef'
+            d_waitpid='undef'
+            d_vfork='undef'
+            d_pseudofork='undef'
+            i_pthread='undef'
+            d_pthread_atfork='undef'
+            d_pthread_attr_setscope='undef'
+            d_pthread_yield='undef'
+            #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
+            #selectminbits='32'
+            #alignbytes='4'
+            
+            # The WASI sysroot is typically set in the environment or through clang flags.
+            ldflags="$ldflags -O2"
+            ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
+            cppflags='-D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -fno-strict-aliasing -pipe -fstack-protector-strong -DPERL_USE_SAFE_PUTENV -I/usr/local/include'
+          EOF
+
+      - name: Install Perl (WASI build)
+        shell: bash
+        run: |
+          export WASI_SDK_PATH=/opt/wasi-sdk
+          export PATH="$WASI_SDK_PATH/bin:$PATH"
+          
+          # Because "native" is in the same directory, we can reference the host-miniperl etc.
+          # We'll set CC, AR, RANLIB, etc. to the WASI versions:
+          export CC="${WASI_SDK_PATH}/bin/clang --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot --target=wasm32-wasi"
+          export AR="${WASI_SDK_PATH}/bin/llvm-ar"
+          export RANLIB="${WASI_SDK_PATH}/bin/llvm-ranlib"
+          
+          mkdir wasm
+          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
+
+          # Copy the custom hints file for WASI
+          cp hintfile_wasi.sh wasm/hints/wasi.sh
+
+          # Copy over the ExifTool modules we installed in the native build
+          mkdir -p wasm/prefix/lib/perl5/site_perl/5.40.0/wasi
+          cp -rv native/prefix/lib/perl5/site_perl/5.40.0/Image \
+             wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
+          cp -rv native/prefix/lib/perl5/site_perl/5.40.0/File \
+             wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
+
+          cd wasm
+          
+          # Prepare configure arguments for WASI
+          sh Configure -sde \
+            -Dinc_version_list=none \
+            -Ddlsrc=none \
+            -Dloclibpth='' \
+            -Dglibpth='' \
+            -Dlns='/bin/ln' \
+            -Dman1dir=none \
+            -Dman3dir=none \
+            -Dosname="wasi" \
+            -Darchname="wasm32-wasi" \
+            -Dosvers="wasi${WASI_SDK_VERSION}" \
+            -Dmyhostname='localhost' \
+            -Dmydomain='.local' \
+            -Dperladmin=root \
+            -Dcc="$CC" \
+            -Dld="$CC" \
+            -Dar="$AR" \
+            -Dranlib="$RANLIB" \
+            -Doptimize="-O2" \
+            -Dlibs='-lm' \
+            -Dhintfile='wasi' \
+            -Dhostperl="$PWD/../native/prefix/bin/perl" \
+            -Dhostgenerate="$PWD/../native/prefix/bin/perl" \
+            -Dprefix="$PWD/prefix" \
+            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+
+          make utilities
+          make
+          make install
+
+      - name: Test WASI perl with wasmtime
+        if: success()
+        shell: bash
+        run: |
+          cd wasm
+          # Attempt to run a simple script:
+          # We'll map the current directory into the WASI filesystem via --mapdir
+          echo 'print "hello from WASI perl\n";' > test.pl
+          wasmtime run --mapdir=.:. prefix/bin/perl -- test.pl || echo "Command failed, continuing"
+          
+          # Check @INC
+          wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'print(join(":",@INC),"\n")' || echo "Command failed, continuing"
+
+          # Try loading Image::ExifTool
+          wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'use Image::ExifTool; print("ExifTool loaded successfully\n")' || echo "Command failed, continuing"
+
+      - name: Upload Prefix (WASI build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: perl-wasi-prefix
+          path: wasm/prefix
+
+      - name: Upload Additional Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: |
+            wasm/config.h
+            wasm/perl
