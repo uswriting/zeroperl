@@ -29,11 +29,19 @@ def compile_for_wasi(args):
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
     
+    # Add setjmp support flags with LTO enabled
+    extra_flags = [
+        "--target=wasm32-wasi",
+        "-flto=full",
+        "-mllvm", "-wasm-enable-sjlj",
+        "-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
+        "-lsetjmp"
+    ]
+    
     cmd = [
         f"{wasi_sdk_path}/bin/clang",
         f"--sysroot={wasi_sysroot}",
-        "--target=wasm32-wasi"
-    ] + args
+    ] + extra_flags + args
     
     print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
     try:
@@ -55,7 +63,11 @@ def main():
             cmd = [
                 f"{os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/bin/clang",
                 f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
-                "--target=wasm32-wasi"
+                "--target=wasm32-wasi",
+                "-flto=full",
+                "-mllvm", "-wasm-enable-sjlj",
+                "-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
+                "-lsetjmp"
             ] + args
             check_call(cmd, stderr=DEVNULL)
             print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
