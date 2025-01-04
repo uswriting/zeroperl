@@ -164,3 +164,4 @@ jobs:
           path: |
             wasm/config.h
             wasm/perlembed
+            wasm/perlembed.wasm
