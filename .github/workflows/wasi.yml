@@ -136,6 +136,8 @@ jobs:
             #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
             #selectminbits='32'
             #alignbytes='4'
+            c99_for='-std=gnu99'
+            d_c99_variadic_macros='define'
             
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags="$ldflags -O2"
