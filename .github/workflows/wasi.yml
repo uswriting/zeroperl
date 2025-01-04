@@ -136,8 +136,6 @@ jobs:
             #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
             #selectminbits='32'
             #alignbytes='4'
-            c99_for='-std=gnu99'
-            d_c99_variadic_macros='define'
             
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags="$ldflags -O2"
@@ -195,10 +193,7 @@ jobs:
             -Dhostperl="$PWD/../native/miniperl" \
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="$PWD/prefix" \
-            -Dusecrosscompile \
-            -Dtargethost=wasm32-wasi \
-            -Uexecute \
-            -Ud_procselfexe \
+            -Dsysroot=$(dirname $(which $CC))/system \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           
           make utilities PERL="$PWD/../native/miniperl"
