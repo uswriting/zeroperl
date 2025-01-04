@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""
+wasic - WASI Compiler Wrapper
+Handles compilation requests, either building for host (test programs)
+or targeting WASI (actual build)
+"""
+import os
+import sys
+import shlex
+from subprocess import check_call, CalledProcessError
+
+def is_test_compile(args):
+    """Detect if this is a test compilation (like from Configure)"""
+    source_files = [arg for arg in args if arg.endswith('.c')]
+    return any('try' in f or 'test' in f for f in source_files)
+
+def compile_for_host(args):
+    """Compile using host compiler for test programs"""
+    cmd = ['cc'] + args
+    print(f"Host compile: {' '.join(cmd)}", file=sys.stderr)
+    try:
+        check_call(cmd)
+        return 0
+    except CalledProcessError as e:
+        return e.returncode
+
+def compile_for_wasi(args):
+    """Compile using WASI SDK"""
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
+    
+    cmd = [
+        f"{wasi_sdk_path}/bin/clang",
+        f"--sysroot={wasi_sysroot}",
+        "--target=wasm32-wasi"
+    ] + args
+    
+    print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
+    try:
+        check_call(cmd)
+        return 0
+    except CalledProcessError as e:
+        return e.returncode
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: wasic [compiler flags and source files]", file=sys.stderr)
+        return 1
+
+    args = sys.argv[1:]
+    
+    # Choose compilation mode based on input
+    if is_test_compile(args):
+        return compile_for_host(args)
+    else:
+        return compile_for_wasi(args)
+
+if __name__ == '__main__':
+    sys.exit(main())
