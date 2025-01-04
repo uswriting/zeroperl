@@ -40,13 +40,11 @@ jobs:
           # Make available in the current job
           echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
           echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
-
       - name: Confirm clang version
         shell: bash
         run: |
           clang --version || true
           /opt/wasi-sdk/bin/clang --version || true
-
       - name: Install Perl (native, static)
         shell: bash
         run: |
@@ -59,10 +57,8 @@ jobs:
           
           # Configure for a native static build (on Ubuntu). We keep dynamic loading disabled for simplicity.
           sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
-
           make
           make install
-
       - name: Install ExifTool and Dependencies (native)
         shell: bash
         run: |
@@ -73,7 +69,6 @@ jobs:
           make
           make test
           make install PREFIX="$PWD/../native/prefix"
-
       - name: Create WASI hint file
         shell: bash
         run: |
@@ -147,7 +142,6 @@ jobs:
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
             cppflags='-lm -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           EOF
-
       - name: Install Perl (WASI build)
         shell: bash
         run: |
@@ -158,23 +152,20 @@ jobs:
           
           # Because "native" is in the same directory, we can reference the host-miniperl etc.
           # We'll set CC, AR, RANLIB, etc. to the WASI versions:
-          export CC="${WASI_SDK_PATH}/bin/clang --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot --target=wasm32-wasi"
+          export CC="${WASI_SDK_PATH}/bin/clang"
           export AR="${WASI_SDK_PATH}/bin/llvm-ar"
           export RANLIB="${WASI_SDK_PATH}/bin/llvm-ranlib"
           
           mkdir wasm
           curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
-
           # Copy the custom hints file for WASI
           cp hintfile_wasi.sh wasm/hints/wasi.sh
-
           # Copy over the ExifTool modules we installed in the native build
           mkdir -p wasm/prefix/lib/perl5/site_perl/5.40.0/wasi
           cp -rv native/prefix/lib/perl5/site_perl/5.40.0/Image \
              wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
           cp -rv native/prefix/lib/perl5/site_perl/5.40.0/File \
              wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
-
           cd wasm
           
           # Prepare configure arguments for WASI
@@ -207,7 +198,6 @@ jobs:
           make utilities PERL="$PWD/../native/miniperl"
           make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           make install
-
       - name: Test WASI perl with wasmtime
         if: success()
         shell: bash
@@ -220,10 +210,8 @@ jobs:
           
           # Check @INC
           wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'print(join(":",@INC),"\n")' || echo "Command failed, continuing"
-
           # Try loading Image::ExifTool
           wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'use Image::ExifTool; print("ExifTool loaded successfully\n")' || echo "Command failed, continuing"
-
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
         with:
