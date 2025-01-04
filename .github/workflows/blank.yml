@@ -37,7 +37,7 @@ jobs:
           make test
           make install PREFIX="$PWD/../native/prefix"
           # Install dependencies via cpanm
-          cpanm --local-lib="$PWD/../native/prefix" \
+          # cpanm --local-lib="$PWD/../native/prefix" \
           #  Archive::Zip Compress::Raw::Lzma Compress::Zlib Digest::MD5 Digest::SHA \
           #  IO::Compress::Brotli IO::Compress::RawDeflate IO::Uncompress::Brotli \
           #  IO::Uncompress::RawInflate POSIX::strptime Time::HiRes
