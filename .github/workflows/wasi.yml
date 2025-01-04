@@ -199,7 +199,6 @@ jobs:
             -Doptimize="-O2" \
             -Dlibs='-lm' \
             -Dhintfile=wasi \
-            -Dsysroot=$(dirname $(which $CC))/system \
             -Dhostperl="$PWD/../native/miniperl" \
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="$PWD/prefix" \
