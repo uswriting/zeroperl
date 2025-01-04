@@ -7,7 +7,7 @@ or targeting WASI (actual build)
 import os
 import sys
 import shlex
-from subprocess import check_call, CalledProcessError
+from subprocess import check_call, CalledProcessError, DEVNULL
 
 def is_test_compile(args):
     """Detect if this is a test compilation (like from Configure)"""
@@ -39,8 +39,8 @@ def compile_for_wasi(args):
     try:
         check_call(cmd)
         return 0
-    except CalledProcessError as e:
-        return e.returncode
+    except CalledProcessError:
+        return None  # Return None to indicate failure without printing error
 
 def main():
     if len(sys.argv) < 2:
@@ -49,10 +49,23 @@ def main():
 
     args = sys.argv[1:]
     
-    # Choose compilation mode based on input
     if is_test_compile(args):
-        return compile_for_host(args)
+        try:
+            # Try WASI compilation first, suppressing stderr
+            cmd = [
+                f"{os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/bin/clang",
+                f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
+                "--target=wasm32-wasi"
+            ] + args
+            check_call(cmd, stderr=DEVNULL)
+            print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
+            # If WASI succeeded, compile for host to get test executable
+            return compile_for_host(args)
+        except CalledProcessError:
+            print("Test compile failed with WASI", file=sys.stderr)
+            return 1
     else:
+        # For non-test compiles, use WASI only
         return compile_for_wasi(args)
 
 if __name__ == '__main__':
