@@ -121,7 +121,13 @@ jobs:
             #d_sigprocmask='undef'
             d_killpg='undef'
             d_pause='undef'
+            d_sigsetjmp='undef'
+            d_setjmp='undef'
+            d_longjmp='undef'
+            i_setjmp='undef'
             d_sigsetjmp='undef' # this also disables Perl's use of siglongjmp() (see config.h)
+            d_sigaction='undef'
+            d_sigprocmask='undef'
             # the others either aren't used by Perl (like siginterrupt) or can't be Configure'd (like kill)
             #TODO Later: currently I've disabled Perl's use of signal() by patching the source - maybe there's a better way?
             # Emscripten doesn't actually have these either (see "$EMSCRIPTEN/src/library.js")
