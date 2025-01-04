@@ -184,9 +184,9 @@ jobs:
             -Dlns='/bin/ln' \
             -Dman1dir=none \
             -Dman3dir=none \
-            -Dosname="emscripten" \
-            -Darchname="wasm" \
-            -Dosvers="2.0.5" \
+            -Dosname="wasi" \
+            -Darchname="wasm32-wasi" \
+            -Dosvers="wasi${WASI_SDK_VERSION}" \
             -Dmyhostname='localhost' \
             -Dmydomain='.local' \
             -Dperladmin=root \
