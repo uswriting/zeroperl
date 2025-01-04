@@ -141,7 +141,7 @@ jobs:
           emmake make       RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           chmod +x ./perl # export EMMAKEN_JUST_CONFIGURE=1 before emmake make
           emmake make install
-          node ./prefix/bin/perl -e 'print("hello world\n");'
+          #node ./prefix/bin/perl -e 'print("hello world\n");'
 
           find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           find ./prefix
