@@ -16,20 +16,30 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Setup `wasmtime`
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+
+      - name: Run `wasmtime version`
+        run: "wasmtime --version"
+
       - name: Install WASI SDK
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget xz-utils wasmtime
+        
+          # Create directory for WASI SDK
+          sudo mkdir -p /opt/wasi-sdk
           
-          # Download and unpack WASI SDK to /opt/wasi-sdk
-          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}-linux.tar.gz
-          tar xzf wasi-sdk-${WASI_SDK_VERSION}-linux.tar.gz
-          sudo mv wasi-sdk-${WASI_SDK_VERSION} /opt/wasi-sdk
+          # Download and extract WASI SDK
+          cd /tmp
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-linux.tar.gz
+          sudo tar xvf wasi-sdk-${WASI_SDK_VERSION}.0-linux.tar.gz -C /opt/wasi-sdk --strip-components=1
+          
+          # Verify installation
+          ls -la /opt/wasi-sdk/bin
           
           # Make available in the current job
           echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
-          echo "PATH=\$PATH:/opt/wasi-sdk/bin" >> $GITHUB_ENV
+          echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
 
       - name: Confirm clang version
         shell: bash
