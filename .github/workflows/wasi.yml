@@ -146,13 +146,13 @@ jobs:
         shell: bash
         run: |
           REPO_ROOT=$PWD
-          chmod +x $REPO_ROOT/wasiconfigure $REPO_ROOT/wasimake
+          chmod +x $REPO_ROOT/wasiconfigure $REPO_ROOT/wasimake $REPO_ROOT/wasic
           export WASI_SDK_PATH=/opt/wasi-sdk
           export PATH="$WASI_SDK_PATH/bin:$PATH"
           
           # Because "native" is in the same directory, we can reference the host-miniperl etc.
           # We'll set CC, AR, RANLIB, etc. to the WASI versions:
-          export CC="${WASI_SDK_PATH}/bin/clang"
+          export CC="$REPO_ROOT/wasic"
           export AR="${WASI_SDK_PATH}/bin/llvm-ar"
           export RANLIB="${WASI_SDK_PATH}/bin/llvm-ranlib"
           
