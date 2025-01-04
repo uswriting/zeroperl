@@ -95,6 +95,13 @@ jobs:
             usemallocwrap="define"
             d_procselfexe='undef'
             d_dlopen='undef'
+
+            # Disable wait-related features
+            d_wait='undef'
+            d_waitpid='undef'
+            d_wait3='undef'
+            d_wait4='undef'
+            i_syswait='undef'    # This tells perl not to include sys/wait.h
             
             d_setrgid='undef'
             d_setruid='undef'
