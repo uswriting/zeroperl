@@ -195,7 +195,7 @@ jobs:
             -Dman1dir=none \
             -Dman3dir=none \
             -Dosname="wasi" \
-            -Darchname="wasm32-wasi" \
+            -Darchname="wasm32-wasi-threads" \
             -Dosvers="wasi${WASI_SDK_VERSION}" \
             -Dmyhostname='localhost' \
             -Dmydomain='.local' \
