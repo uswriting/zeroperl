@@ -44,15 +44,14 @@ def compile_for_host(args):
     """
     Compile source files for the host environment.
     """
-    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
-
+    # Use the system's native clang or gcc
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
     # Adjust the target for your host platform
     host_target = os.getenv('HOST_TARGET', 'x86_64-linux-gnu')  # Update as needed for your host
 
     cmd = [
-        os.path.join(wasi_sdk_path, 'bin', compiler),
+        compiler,  # Use system's compiler
         f"--target={host_target}",
         "-O2"
     ] + args
