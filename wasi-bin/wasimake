@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+wasimake is a helper script that runs make for you, setting
+the environment variables to use wasic compiler tools.
+"""
+import os
+import sys
+import shlex
+from subprocess import check_call, CalledProcessError
+
+def get_building_env():
+    if 'WASI_SDK_PATH' not in os.environ:
+        print('Error: WASI_SDK_PATH not set!', file=sys.stderr)
+        sys.exit(1)
+
+    env = os.environ.copy()
+    our_path = os.path.dirname(os.path.abspath(__file__))
+
+    # Core compiler tools
+    env['CC'] = 'wasic'
+    env['CXX'] = 'wasic++'
+    env['LD'] = os.path.join(env['WASI_SDK_PATH'], 'bin/wasm-ld')
+    env['AR'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ar')
+    env['NM'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-nm')
+    env['LDSHARED'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang')
+    env['RANLIB'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ranlib')
+    env['STRIP'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-strip')
+    env['OBJDUMP'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-objdump')
+
+    # Host tools point directly to wasi clang
+    env['HOST_CC'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang')
+    env['HOST_CXX'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang++')
+    env['HOST_CFLAGS'] = '-D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['HOST_CXXFLAGS'] = '-D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['HOST_LDFLAGS'] = '-lwasi-emulated-signal'
+
+    # Add default flags
+    env['CFLAGS'] = env.get('CFLAGS', '') + ' -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['LDFLAGS'] = env.get('LDFLAGS', '') + ' -lwasi-emulated-signal'
+
+    # Path setup
+    env['PATH'] = os.path.join(env['WASI_SDK_PATH'], 'bin') + os.pathsep + os.environ['PATH']
+    env['CROSS_COMPILE'] = os.path.join(our_path, 'wasi')
+
+    return env
+
+def run():
+    if len(sys.argv) < 2 or sys.argv[1] in ('--version', '--help'):
+        print('''\
+wasimake is a helper for make, setting various environment
+variables to use the WASI SDK compiler tools. Typical usage:
+  wasimake make [FLAGS]
+(but you can run any command instead of make)''', file=sys.stderr)
+        return 1
+
+    args = sys.argv[1:]
+    env = get_building_env()
+
+    print('make: ' + shlex.join(args), file=sys.stderr)
+    try:
+        check_call(args, env=env)
+        return 0
+    except CalledProcessError as e:
+        return e.returncode
+
+if __name__ == '__main__':
+    sys.exit(run())
