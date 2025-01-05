@@ -106,7 +106,6 @@ jobs:
             d_wait4='undef'
             i_syswait='undef'    # This tells perl not to include sys/wait.h
             d_dirnamlen='undef'
-
             i_grp='define'
             i_pwd='define'
             d_getpwnam='undef'
@@ -119,7 +118,6 @@ jobs:
             d_getprpwnam='undef'
             d_setpwent='undef'
             d_setpwent_r='undef'
-
             d_getgrnam='undef'
             d_getgrgid='undef'
             d_getgrent='undef'
@@ -184,7 +182,7 @@ jobs:
             noextensions='Socket POSIX'
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
-            ldflags='$ldflags -mllvm -wasm-enable-sjlj -O2'
+            ldflags='$ldflags -L/opt/wasi-sdk/share/wasi-sysroot/lib/wasm32-wasi -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman -O2'
             ccflags='$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
             cppflags='-lm -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
@@ -236,7 +234,7 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-          wasic -flto=full -o perlwasi perlmain.o \
+          wasic -L/opt/wasi-sdk/share/wasi-sysroot/lib/wasm32-wasi -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
@@ -285,7 +283,7 @@ jobs:
             lib/auto/Opcode/Opcode.a \
             libperl.a \
             `cat ext.libs` \
-            -lm -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman -lwasi-emulated-poll -lwasi-emulated-syscalls
+            -lm -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman
       - name: Test WASI perl with wasmtime
         if: success()
         shell: bash
