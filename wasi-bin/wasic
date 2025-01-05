@@ -23,21 +23,19 @@ def run_command(cmd):
         logger.error(f"Command failed with return code {e.returncode}")
         sys.exit(e.returncode)
 
-def compile_for_wasi(args):
+def compile_for_host(args):
     """
-    Compile source files for the WASI environment.
+    Compile source files for the host environment using gcc.
     """
-    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
-    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
+    compiler = 'g++' if any(arg.endswith('.cpp') for arg in args) else 'gcc'
 
-    compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
-
+    # Remove the --target flag since gcc does not require it
     cmd = [
-        os.path.join(wasi_sdk_path, 'bin', compiler),
-        f"--sysroot={wasi_sysroot}"
+        compiler,
+        "-O2"
     ] + args
 
-    logger.info(f"Compiling for WASI: {' '.join(cmd)}")
+    logger.info(f"Compiling for host with gcc: {' '.join(cmd)}")
     run_command(cmd)
 
 def compile_for_host(args):
