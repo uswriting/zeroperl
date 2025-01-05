@@ -1,40 +1,39 @@
 #!/usr/bin/env python3
 """
-wasiconfigure - Helper script for running configure with WASI-SDK settings
-Similar to emconfigure for Emscripten
+wasiconfigure is a helper script that runs ./configure for you,
+setting the environment variables to use wasic. Usage:
+  wasiconfigure ./configure [FLAGS]
+You can also use this for other configure-like stages.
 """
-
 import os
 import sys
 from subprocess import check_call, CalledProcessError
 
-def get_wasi_env():
-    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
-    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
-    
-    env = os.environ.copy()
-    env.update({
-        'CC': f"{wasi_sdk_path}/bin/clang --sysroot={wasi_sysroot} --target=wasm32-wasi",
-        'CXX': f"{wasi_sdk_path}/bin/clang++ --sysroot={wasi_sysroot} --target=wasm32-wasi",
-        'AR': f"{wasi_sdk_path}/bin/llvm-ar",
-        'RANLIB': f"{wasi_sdk_path}/bin/llvm-ranlib",
-        'PATH': f"{wasi_sdk_path}/bin:{env.get('PATH', '')}",
-        'WASI_SDK_PATH': wasi_sdk_path,
-        'WASI_JUST_CONFIGURE': '1',  # Similar to EMMAKEN_JUST_CONFIGURE
-    })
-    return env
-
 def run():
-    if len(sys.argv) < 2 or sys.argv[1] in ('--help', '--version'):
-        print("""wasiconfigure is a helper for configure, setting up WASI-SDK environment.
-Usage: wasiconfigure ./configure [FLAGS]""")
+    if len(sys.argv) < 2 or sys.argv[1] in ('--version', '--help'):
+        print('''\
+wasiconfigure is a helper for configure, setting various environment
+variables so that wasic etc. are used. Typical usage:
+  wasiconfigure ./configure [FLAGS]
+(but you can run any command instead of configure)''', file=sys.stderr)
         return 1
 
     args = sys.argv[1:]
-    env = get_wasi_env()
+    if 'cmake' in args:
+        print('error: wasiconfigure is not intended for cmake projects', file=sys.stderr)
+        return 1
+
+    # Set up the environment for configure
+    env = os.environ.copy()
+    env['CC'] = 'wasic'
+    env['AR'] = os.path.join(env.get('WASI_SDK_PATH', '/opt/wasi-sdk'), 'bin/llvm-ar')
+    env['RANLIB'] = os.path.join(env.get('WASI_SDK_PATH', '/opt/wasi-sdk'), 'bin/llvm-ranlib')
     
+    # Add our directory to PATH so wasic can be found
+    env['PATH'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep + env.get('PATH', '')
+
+    print('configure: ' + ' '.join(args), file=sys.stderr)
     try:
-        print(f"configure: {' '.join(args)}", file=sys.stderr)
         check_call(args, env=env)
         return 0
     except CalledProcessError as e:
