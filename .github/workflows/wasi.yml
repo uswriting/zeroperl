@@ -179,10 +179,10 @@ jobs:
             #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
             #selectminbits='32'
             #alignbytes='4'
-            noextensions='Socket POSIX'
+            noextensions='Socket POSIX File/Glob'
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
-            ldflags='$ldflags --allow-multiple-definition -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman -O2'
+            ldflags='$ldflags -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman -O2'
             ccflags='$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
             cppflags='-lm -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
@@ -226,7 +226,7 @@ jobs:
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="$PWD/prefix" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
-            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+            -Dstatic_ext="mro Devel/Peek File/DosGlob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
           wasimake make utilities PERL="$PWD/../native/miniperl"
@@ -234,11 +234,10 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-          wasic --allow-multiple-definition -flto=full -o perlwasi perlmain.o \
+          wasic -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
-            lib/auto/File/Glob/Glob.a \
             lib/auto/Sys/Syslog/Syslog.a \
             lib/auto/Sys/Hostname/Hostname.a \
             lib/auto/PerlIO/via/via.a \
