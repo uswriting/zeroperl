@@ -238,7 +238,7 @@ jobs:
           #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           #find ./prefix
           
-          wasic -flto=off -o perlwasi -static perlmain.o \
+          wasic -o perlwasi -static perlmain.o \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
