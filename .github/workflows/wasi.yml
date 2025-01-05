@@ -156,7 +156,7 @@ jobs:
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags="$ldflags -O2"
             ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic"
-            cppflags='-lm -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
+            cppflags='-lm -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
           EOF
 
       - name: Install Perl (WASI build)
