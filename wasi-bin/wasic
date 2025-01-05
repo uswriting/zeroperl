@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""
+wasic - WASI Compiler Wrapper
+Always compiles using WASI clang and passes through arguments unchanged
+"""
+import os
+import sys
+from subprocess import check_call, CalledProcessError
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: wasic [compiler flags and source files]", file=sys.stderr)
+        return 1
+    
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
+    
+    # Basic WASI settings
+    base_flags = [
+        "--target=wasm32-wasi",
+        f"--sysroot={wasi_sysroot}",
+        "-w",
+    ]
+    
+    cmd = [f"{wasi_sdk_path}/bin/clang"] + base_flags + sys.argv[1:]
+    print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
+    try:
+        check_call(cmd)
+        return 0
+    except CalledProcessError as e:
+        return e.returncode
+
+if __name__ == '__main__':
+    sys.exit(main())
