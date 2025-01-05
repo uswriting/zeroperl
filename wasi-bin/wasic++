@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""
+wasic++ - WASI C++ compiler wrapper
+Wrapper for C++ compilation, similar to wasic
+"""
+import os
+import sys
+
+if __name__ == '__main__':
+    # Set the C++ env var and delegate to wasic
+    os.environ['WASI_CPP'] = '1'
+    wasic_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wasic')
+    os.execv(wasic_path, ['wasic++'] + sys.argv[1:])
