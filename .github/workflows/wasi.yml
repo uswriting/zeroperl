@@ -214,7 +214,7 @@ jobs:
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
 
-          wasimake make utilities PERL="$PWD/../native/miniperl"
+          #wasimake make utilities PERL="$PWD/../native/miniperl"
           wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           wasimake make install
 
