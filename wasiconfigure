@@ -33,10 +33,32 @@ variables so that wasic etc. are used. Typical usage:
 
     # Set up the environment for configure
     env = os.environ.copy()
+
+    # Core compiler tools
     env['CC'] = wasic_path
+    env['CXX'] = wasic_path
     env['LD'] = wasic_path
+    env['LDSHARED'] = wasic_path
+    env['AS'] = wasic_path
     env['AR'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ar')
+    env['NM'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-nm')
     env['RANLIB'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ranlib')
+    env['STRIP'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-strip')
+    env['OBJDUMP'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-objdump')
+
+    # Host tools point directly to wasi clang
+    env['HOST_CC'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang')
+    env['HOST_CXX'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang++')
+    env['HOST_CFLAGS'] = '-D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['HOST_CXXFLAGS'] = '-D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['HOST_LDFLAGS'] = '-lwasi-emulated-signal'
+
+    # Cross compilation flags
+    env['CFLAGS'] = env.get('CFLAGS', '') + ' -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal'
+    env['LDFLAGS'] = env.get('LDFLAGS', '') + ' -lwasi-emulated-signal'
+    env['CROSS_COMPILE'] = os.path.join(our_path, 'wasi')
+
+    # Add our directory to PATH
     env['PATH'] = our_path + os.pathsep + env.get('PATH', '')
 
     print('configure: ' + ' '.join(args), file=sys.stderr)
