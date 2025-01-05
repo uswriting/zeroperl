@@ -21,20 +21,22 @@ variables so that wasic is used. Typical usage:
         print('Error: WASI_SDK_PATH not set!', file=sys.stderr)
         return 1
 
-    # Store original PATH
-    old_path = os.environ.get('PATH', '')
-
-    # Point the build system at our wasi compiler wrapper
-    os.environ['CC'] = 'wasic'
-    os.environ['AR'] = os.path.join(os.environ['WASI_SDK_PATH'], 'bin/llvm-ar')
-    os.environ['RANLIB'] = os.path.join(os.environ['WASI_SDK_PATH'], 'bin/llvm-ranlib')
-    # Add our directory to PATH so wasic can be found
-    os.environ['PATH'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep + old_path
+    # Get absolute path to our wasic wrapper
+    our_path = os.path.dirname(os.path.abspath(__file__))
+    wasic_path = os.path.join(our_path, 'wasic')
+    
+    # Set up the environment for make
+    env = os.environ.copy()
+    env['CC'] = wasic_path
+    env['LD'] = wasic_path
+    env['AR'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ar')
+    env['RANLIB'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ranlib')
+    env['PATH'] = our_path + os.pathsep + env.get('PATH', '')
 
     args = sys.argv[1:]
     print('wasimake: ' + shlex.join(args), file=sys.stderr)
     try:
-        check_call(args)
+        check_call(args, env=env)
         return 0
     except CalledProcessError as e:
         return e.returncode
