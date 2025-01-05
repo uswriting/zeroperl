@@ -234,7 +234,7 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-          wasic -L/opt/wasi-sdk/share/wasi-sysroot/lib/wasm32-wasi -flto=full -o perlwasi perlmain.o \
+          wasic -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
