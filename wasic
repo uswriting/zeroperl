@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 wasic - WASI Compiler Wrapper
-Handles compilation requests, either building for host (test programs and native tools)
+Handles compilation requests, either building for host (test programs)
 or targeting WASI (actual build)
 """
 import os
@@ -11,11 +11,7 @@ from subprocess import check_call, CalledProcessError, DEVNULL
 def is_test_compile(args):
     """Detect if this is a test compilation (like from Configure)"""
     source_files = [arg for arg in args if arg.endswith('.c')]
-    return any('try' in f or 'test' in f for f in source_files)
-
-def is_native_build():
-    """Check if we're in the native build phase"""
-    return os.getenv('PERL_NATIVE_BUILD') == '1'
+    return any('try' in f for f in source_files)
 
 def compile_for_host(args):
     """Compile using host compiler"""
@@ -45,7 +41,7 @@ def compile_for_wasi(args):
     cmd = [f"{wasi_sdk_path}/bin/clang"] + extra_flags + args
     print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
     try:
-        check_call(cmd)
+        check_call(cmd, stderr=DEVNULL)
         return 0
     except CalledProcessError as e:
         return e.returncode
@@ -61,14 +57,16 @@ def main():
     if len(args) == 1 and args[0] == '-v':
         return compile_for_host(args)
 
-    # If we're in native build mode, use host compiler
-    if is_native_build():
-        return compile_for_host(args)
-
-    # For test compiles during Configure, succeed even if WASI compile fails
+    # For test compiles during Configure, try WASI first to detect features
+    # but fall back to host compiler to generate runnable test executables
     if is_test_compile(args):
-        compile_for_wasi(args)
-        return 0
+        try:
+            compile_for_wasi(args)
+            print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
+            return compile_for_host(args)
+        except:
+            print("Test compile failed with WASI", file=sys.stderr)
+            return 1
     
     # For all other cases, use WASI
     return compile_for_wasi(args)
