@@ -162,8 +162,8 @@ jobs:
             
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags="$ldflags -mllvm -wasm-enable-sjlj -O2"
-            ccflags="$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal"
-            cppflags='-lm -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
+            ccflags="$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -D_O_APPEND=02000 -D_O_TRUNC=01000 -D_O_EXCL=0200 -D_O_CREAT=0100 -D_O_NONBLOCK=04000"
+            cppflags='-lm -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -D_O_APPEND=02000 -D_O_TRUNC=01000 -D_O_EXCL=0200 -D_O_CREAT=0100 -D_O_NONBLOCK=04000 -I/usr/local/include'
           EOF
 
       - name: Install Perl (WASI build)
@@ -173,6 +173,8 @@ jobs:
           chmod +x $WASI_BIN/wasic $WASI_BIN/wasimake $WASI_BIN/wasiconfigure
           export WASI_SDK_PATH=/opt/wasi-sdk
           export PATH="$WASI_BIN:$PATH"
+
+          cat /opt/wasi-sdk/share/wasi-sysroot/include/fcntl.h
           
 
           mkdir wasm
