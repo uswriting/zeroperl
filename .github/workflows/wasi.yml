@@ -52,13 +52,11 @@ jobs:
           # Make available in the current job
           echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
           echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
-
       - name: Confirm clang version
         shell: bash
         run: |
           clang --version || true
           /opt/wasi-sdk/bin/clang --version || true
-
       - name: Install Perl (native, static)
         shell: bash
         run: |
@@ -73,7 +71,6 @@ jobs:
           sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
           make
           make install
-
       - name: Install ExifTool and Dependencies (native)
         shell: bash
         run: |
@@ -84,7 +81,6 @@ jobs:
           make
           make test
           make install PREFIX="$PWD/../native/prefix"
-
       - name: Create WASI hint file
         shell: bash
         run: |
@@ -102,7 +98,6 @@ jobs:
             usemallocwrap="define"
             d_procselfexe='undef'
             d_dlopen='undef'
-
             # Disable wait-related features
             d_wait='undef'
             d_waitpid='undef'
@@ -163,11 +158,9 @@ jobs:
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags='$ldflags -mllvm -wasm-enable-sjlj -O2'
-            ccflags='$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -I/opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi -DO_RDONLY=0 -DO_WRONLY=1 -DO_RDWR=2 -DO_CREAT=0100 -DO_EXCL=0200 -DO_TRUNC=01000 -DO_APPEND=02000 -DO_ACCMODE=3'
-            cppflags='$cppflags -lm -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi -DO_RDONLY=0 -DO_WRONLY=1 -DO_RDWR=2 -DO_CREAT=0100 -DO_EXCL=0200 -DO_TRUNC=01000 -DO_APPEND=02000 -DO_ACCMODE=3'
-
+            ccflags='$ccflags -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -I/opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi -include fcntl.h'
+            cppflags='$cppflags -lm -Wno-implicit-function-declaration -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -mllvm -wasm-enable-sjlj -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -I/opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi -include fcntl.h'
           EOF
-
       - name: Install Perl (WASI build)
         shell: bash
         run: |
@@ -176,16 +169,13 @@ jobs:
           export WASI_SDK_PATH=/opt/wasi-sdk
           export PATH="$WASI_BIN:$PATH"
           
-
           mkdir wasm
           curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           cp hintfile_wasi.sh wasm/hints/wasi.sh
-
           cd wasm
           mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
@@ -212,14 +202,11 @@ jobs:
             -Dprefix="$PWD/prefix" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
-
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
-
           wasimake make utilities PERL="$PWD/../native/miniperl"
           wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           wasimake make install
-
           # Final linking step
           wasic -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
@@ -273,7 +260,6 @@ jobs:
             libperl.a \
             `cat ext.libs` \
             -lm -lwasi-emulated-signal
-
       - name: Test WASI perl with wasmtime
         if: success()
         shell: bash
@@ -288,7 +274,6 @@ jobs:
           wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'print(join(":",@INC),"\n")' || echo "Command failed, continuing"
           # Try loading Image::ExifTool
           wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'use Image::ExifTool; print("ExifTool loaded successfully\n")' || echo "Command failed, continuing"
-
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
         with:
