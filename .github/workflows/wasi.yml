@@ -115,7 +115,10 @@ jobs:
             d_getspnam='undef'
             d_getpwnam_r='undef'
             d_getpwent_r='undef'
-            d_getpwuid_r='undef' 
+            d_getpwuid_r='undef'
+            d_getprpwnam='undef'
+            d_setpwent='undef'
+            d_setpwent_r='undef'
 
             d_getgrnam='undef'
             d_getgrgid='undef'
@@ -123,6 +126,10 @@ jobs:
             d_getgrnam_r='undef'
             d_getgrgid_r='undef'
             d_getgrent_r='undef'
+            d_setgrent='undef'
+            d_setgrent_r='undef'
+            d_endgrent='undef'
+            d_endgrent_r='undef'
             
             d_setrgid='undef'
             d_setruid='undef'
