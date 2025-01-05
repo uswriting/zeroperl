@@ -86,7 +86,7 @@ jobs:
         run: |
           cat <<'EOF' > hintfile_wasi.sh
             # fix bizarre preprocessor bug
-            cpp_stuff=42
+            cpp_stuff=1
             #TODO: almost all of the known_extensions are still being built. we should probably exclude some of them! (see also nonxs_ext)
             #noextensions='IPC/SysV'
             # Here's a fun one: apparently, when building perlmini.c, emcc notices that it's a symlink to perl.c, and compiles to perl.o
@@ -180,7 +180,7 @@ jobs:
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
-            -Dcpp_stuff=42 \
+            -Dcpp_stuff=1 \
             -Ddlsrc=none \
             -Dloclibpth='' \
             -Dglibpth='' \
