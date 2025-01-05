@@ -298,7 +298,7 @@ jobs:
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
             -Wl,--export-all \
-            -v -error-limit=0
+            -v -ferror-limit=0
 
             
       - name: Test WASI perl with wasmtime
