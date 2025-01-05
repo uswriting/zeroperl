@@ -23,14 +23,21 @@ variables so that wasic etc. are used. Typical usage:
         print('error: wasiconfigure is not intended for cmake projects', file=sys.stderr)
         return 1
 
+    if 'WASI_SDK_PATH' not in os.environ:
+        print('Error: WASI_SDK_PATH not set!', file=sys.stderr)
+        return 1
+
+    # Get absolute path to our wasic wrapper
+    our_path = os.path.dirname(os.path.abspath(__file__))
+    wasic_path = os.path.join(our_path, 'wasic')
+
     # Set up the environment for configure
     env = os.environ.copy()
-    env['CC'] = 'wasic'
-    env['AR'] = os.path.join(env.get('WASI_SDK_PATH', '/opt/wasi-sdk'), 'bin/llvm-ar')
-    env['RANLIB'] = os.path.join(env.get('WASI_SDK_PATH', '/opt/wasi-sdk'), 'bin/llvm-ranlib')
-    
-    # Add our directory to PATH so wasic can be found
-    env['PATH'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep + env.get('PATH', '')
+    env['CC'] = wasic_path
+    env['LD'] = wasic_path
+    env['AR'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ar')
+    env['RANLIB'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ranlib')
+    env['PATH'] = our_path + os.pathsep + env.get('PATH', '')
 
     print('configure: ' + ' '.join(args), file=sys.stderr)
     try:
