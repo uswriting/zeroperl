@@ -25,3 +25,15 @@ mode_t umask(mode_t mask) { return 0; }
 // Program execution
 int execvp(const char *file, char *const argv[]) { return -1; }
 int execl(const char *path, const char *arg, ...) { return -1; }
+int execv(const char *path, char *const argv[]) { return -1; }
+
+// Process creation
+int do_aspawn() { return -1; }
+int do_spawn() { return -1; }
+
+// Pipe and wait
+int PerlProc_pipe_cloexec(int fds[2]) { return -1; }
+int wait(int *status) { return -1; }
+
+// Timezone functions
+void tzset() {}
