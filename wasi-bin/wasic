@@ -23,38 +23,29 @@ def run_command(cmd):
         logger.error(f"Command failed with return code {e.returncode}")
         sys.exit(e.returncode)
 
-def compile_for_host(args):
+def compile_for_wasi(args):
     """
-    Compile source files for the host environment using gcc.
+    Compile source files for the WASI environment.
     """
-    compiler = 'g++' if any(arg.endswith('.cpp') for arg in args) else 'gcc'
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
 
-    # Remove the --target flag since gcc does not require it
+    compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
+
     cmd = [
-        compiler,
-        "-O2"
+        os.path.join(wasi_sdk_path, 'bin', compiler),
+        f"--sysroot={wasi_sysroot}"
     ] + args
 
-    logger.info(f"Compiling for host with gcc: {' '.join(cmd)}")
+    logger.info(f"Compiling for WASI: {' '.join(cmd)}")
     run_command(cmd)
 
 def compile_for_host(args):
     """
-    Compile source files for the host environment.
+    Pass through commands to the host compiler directly.
     """
-    # Use the system's native clang or gcc
-    compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
-
-    # Adjust the target for your host platform
-    host_target = os.getenv('HOST_TARGET', 'x86_64-linux-gnu')  # Update as needed for your host
-
-    cmd = [
-        compiler,  # Use system's compiler
-        f"--target={host_target}",
-        "-O2"
-    ] + args
-
-    logger.info(f"Compiling for host: {' '.join(cmd)}")
+    cmd = args  # Direct pass-through of arguments
+    logger.info(f"Passing through to host compiler: {' '.join(cmd)}")
     run_command(cmd)
 
 def determine_build_mode(args):
@@ -62,7 +53,8 @@ def determine_build_mode(args):
     Determine the build mode (WASI or HOST) based on the arguments.
     """
     for arg in args:
-        if arg.endswith('try.c'):
+        # Treat commands with "clang" or "gcc" as host builds
+        if "clang" in arg or "gcc" in arg:
             return BuildMode.HOST
     return BuildMode.WASI
 
