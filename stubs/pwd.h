@@ -5,21 +5,20 @@
 
 #include <sys/types.h> 
 
-// Minimal struct passwd definition
 struct passwd {
-    uid_t pw_uid; 
+    uid_t pw_uid;
+    gid_t pw_gid; 
+    char *pw_name;
+    char *pw_dir;
+    char *pw_shell;
 };
 
-// Stub implementations of functions
 struct passwd *getpwnam(const char *name) {
-    return NULL; // Or return a static dummy struct passwd
+    return NULL; 
 }
 
 struct passwd *getpwuid(uid_t uid) {
-    return NULL; // Or return a static dummy struct passwd
+    return NULL; 
 }
-
-// Add other necessary stub functions (getpwent, etc.) as needed
-// ...
 
 #endif // _PWD_H
