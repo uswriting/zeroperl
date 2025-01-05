@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 wasimake - WASI make wrapper
-Similar to emmake, this sets up the environment for make to use the WASI SDK compiler
+Sets up the environment for make to use the WASI SDK compiler
 """
 import os
 import sys
@@ -12,7 +12,7 @@ def run():
     if len(sys.argv) < 2 or sys.argv[1] in ('--version', '--help'):
         print('''\
 wasimake is a helper for make, setting various environment
-variables so that wasic, etc. are used. Typical usage:
+variables so that wasic is used. Typical usage:
   wasimake make [FLAGS]
 ''', file=sys.stderr)
         return 1
@@ -23,23 +23,14 @@ variables so that wasic, etc. are used. Typical usage:
 
     # Store original PATH
     old_path = os.environ.get('PATH', '')
-    
-    # Set the environment variables for wasi-sdk compilation
+
+    # Point the build system at our wasi compiler wrapper
     os.environ['CC'] = 'wasic'
-    os.environ['CXX'] = 'wasic++'
     os.environ['AR'] = os.path.join(os.environ['WASI_SDK_PATH'], 'bin/llvm-ar')
-    os.environ['NM'] = os.path.join(os.environ['WASI_SDK_PATH'], 'bin/llvm-nm')
     os.environ['RANLIB'] = os.path.join(os.environ['WASI_SDK_PATH'], 'bin/llvm-ranlib')
+    # Add our directory to PATH so wasic can be found
     os.environ['PATH'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep + old_path
 
-    # Set wasi-specific flags
-    os.environ['LDFLAGS'] = '-lwasi-emulated-signal'
-    if 'CFLAGS' in os.environ:
-        os.environ['CFLAGS'] += ' -D_WASI_EMULATED_SIGNAL'
-    else:
-        os.environ['CFLAGS'] = '-D_WASI_EMULATED_SIGNAL'
-
-    # Run make with the modified environment
     args = sys.argv[1:]
     print('wasimake: ' + shlex.join(args), file=sys.stderr)
     try:
