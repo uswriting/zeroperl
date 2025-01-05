@@ -162,6 +162,7 @@ jobs:
       - name: Install Perl (WASI build)
         shell: bash
         run: |
+          export PERL_NATIVE_BUILD=1
           REPO_ROOT=$PWD
           chmod +x $REPO_ROOT/wasiconfigure $REPO_ROOT/wasimake $REPO_ROOT/wasic
           export WASI_SDK_PATH=/opt/wasi-sdk
@@ -216,6 +217,7 @@ jobs:
           #make utilities PERL="$PWD/../native/miniperl"
           make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           make install
+          unset PERL_NATIVE_BUILD
 
       - name: Test WASI perl with wasmtime
         if: success()
