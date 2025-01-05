@@ -211,7 +211,7 @@ jobs:
           $REPO_ROOT/wasimake make install
 
           # Final linking step
-          $REPO_ROOT/wasic -o perlwasi perlmain.o \
+          $REPO_ROOT/wasic -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
