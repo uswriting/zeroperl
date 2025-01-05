@@ -11,16 +11,15 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 def compile_with_wasi(args):
     """
     Compile source files for the WASI environment.
+    Strips 'cflags' if encountered to avoid errors.
     """
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
     target = "wasm32-wasi"
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
-    if "-c" in args:
-        c_index = args.index("-c")
-        if c_index + 1 < len(args) and args[c_index + 1] == "cflags":
-            del args[c_index + 1]
+    # Remove 'cflags' from arguments if present
+    args = [arg for arg in args if arg != "cflags"]
 
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
@@ -30,7 +29,11 @@ def compile_with_wasi(args):
     ] + args
 
     logger.info(f"Compiling with WASI: {' '.join(cmd)}")
-    check_call(cmd)
+    try:
+        check_call(cmd)
+    except CalledProcessError as e:
+        logger.error(f"Compilation failed with error: {e}")
+        sys.exit(e.returncode)
 
 def compile_with_host(args):
     """
@@ -38,12 +41,14 @@ def compile_with_host(args):
     """
     compiler = '/usr/bin/clang'
 
-    cmd = [
-        compiler
-    ] + args
+    cmd = [compiler] + args
 
     logger.info(f"Compiling for the host with /usr/bin/clang: {' '.join(cmd)}")
-    check_call(cmd)
+    try:
+        check_call(cmd)
+    except CalledProcessError as e:
+        logger.error(f"Host compilation failed with error: {e}")
+        sys.exit(e.returncode)
 
 def handle_try_file(test_file):
     """
@@ -60,7 +65,7 @@ def handle_try_file(test_file):
         logger.info(f"`{test_file}` compiled successfully with WASI.")
     except CalledProcessError:
         logger.error(f"`{test_file}` cannot be compiled with WASI. Exiting.")
-        sys.exit(1)  # Exit with non-zero status
+        sys.exit(1)
 
     # Compile with host if WASI succeeded
     compile_with_host([test_file, "-o", "try"])
