@@ -17,10 +17,10 @@ def compile_with_wasi(args):
     target = "wasm32-wasi"
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
-   if "-c" in args:
+    if "-c" in args:
         c_index = args.index("-c")
         if c_index + 1 < len(args) and args[c_index + 1] == "cflags":
-            del args[c_index + 1]     
+            del args[c_index + 1]
 
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
