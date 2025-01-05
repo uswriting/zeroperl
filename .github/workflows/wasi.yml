@@ -184,7 +184,6 @@ jobs:
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
-            -Dcpp_stuff=42 \
             -Ddlsrc=none \
             -Dloclibpth='' \
             -Dglibpth='' \
