@@ -128,6 +128,11 @@ jobs:
             d_setgrent_r='undef'
             d_endgrent='undef'
             d_endgrent_r='undef'
+
+            d_getuid='undef'
+            d_geteuid='undef'
+            d_getgid='undef'
+            d_getegid='undef'
             
             d_setrgid='undef'
             d_setruid='undef'
