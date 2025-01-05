@@ -8,22 +8,7 @@ from subprocess import check_call, CalledProcessError
 logger = logging.getLogger('wasic')
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-class BuildMode:
-    WASI = "wasi"
-    HOST = "host"
-
-def run_command(cmd):
-    """
-    Run a command using subprocess.check_call and handle errors.
-    """
-    try:
-        logger.debug(f"Running command: {' '.join(cmd)}")
-        check_call(cmd)
-    except CalledProcessError as e:
-        logger.error(f"Command failed with return code {e.returncode}")
-        sys.exit(e.returncode)
-
-def compile_for_wasi(args):
+def compile_with_wasi(args):
     """
     Compile source files for the WASI environment.
     """
@@ -37,26 +22,50 @@ def compile_for_wasi(args):
         f"--sysroot={wasi_sysroot}"
     ] + args
 
-    logger.info(f"Compiling for WASI: {' '.join(cmd)}")
-    run_command(cmd)
+    logger.info(f"Compiling with WASI: {' '.join(cmd)}")
+    check_call(cmd)
 
-def compile_for_host(args):
+def compile_with_host(args):
     """
-    Pass through commands to the host compiler directly.
+    Compile source files for the host environment using /usr/bin/clang.
     """
-    cmd = args  # Direct pass-through of arguments
-    logger.info(f"Passing through to host compiler: {' '.join(cmd)}")
-    run_command(cmd)
+    compiler = '/usr/bin/clang'
 
-def determine_build_mode(args):
+    cmd = [
+        compiler
+    ] + args
+
+    logger.info(f"Compiling for the host with /usr/bin/clang: {' '.join(cmd)}")
+    check_call(cmd)
+
+def handle_try_file(test_file):
     """
-    Determine the build mode (WASI or HOST) based on the arguments.
+    Handle the special case for `try.c`:
+    - Compile with WASI first to check compatibility.
+    - If WASI compilation succeeds, compile for the host.
+    - If WASI compilation fails, exit with a non-zero status.
     """
-    for arg in args:
-        # Treat commands with "clang" or "gcc" as host builds
-        if "clang" in arg or "gcc" in arg:
-            return BuildMode.HOST
-    return BuildMode.WASI
+    logger.info(f"Handling special case for `{test_file}`")
+
+    # Attempt to compile with WASI
+    try:
+        compile_with_wasi([test_file, "-o", "try"])
+        logger.info(f"`{test_file}` compiled successfully with WASI.")
+    except CalledProcessError:
+        logger.error(f"`{test_file}` cannot be compiled with WASI. Exiting.")
+        sys.exit(1)  # Exit with non-zero status
+
+    # Compile with host if WASI succeeded
+    compile_with_host([test_file, "-o", "try"])
+
+def handle_compilation(args):
+    """
+    Determine if `try.c` needs special handling or compile with WASI normally.
+    """
+    if "try.c" in args:
+        handle_try_file("try.c")
+    else:
+        compile_with_wasi(args)
 
 def parse_args():
     """
@@ -69,15 +78,10 @@ def parse_args():
 
 def main():
     """
-    Main function to parse arguments and trigger the appropriate build process.
+    Main function to handle compilation logic.
     """
     args = parse_args()
-    build_mode = determine_build_mode(args)
-
-    if build_mode == BuildMode.HOST:
-        compile_for_host(args)
-    else:
-        compile_for_wasi(args)
+    handle_compilation(args)
 
 if __name__ == '__main__':
     main()
