@@ -237,7 +237,7 @@ jobs:
           # Final linking step
 
           
-          wasic --target=wasm32-wasi -flto=full -o perlwasi -static perlmain.o \
+          wasic --target=wasm32-wasi -flto=full -o perlwasi -static miniperlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
