@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# wasic - WASI Compiler Wrapper
-# =============================
-# Handles compilation requests for either host builds (test programs and native tools)
-# or targeting WASI (actual build). Focused on ensuring Perl builds use the WASI toolchain.
-
 import os
 import sys
 import logging
@@ -13,21 +7,10 @@ from subprocess import check_call, CalledProcessError
 logger = logging.getLogger('wasic')
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-# Define WASI build mode
 class BuildMode:
     WASI = "wasi"
+    HOST = "host"
 
-class WasicState:
-    def __init__(self):
-        self.args = []
-        self.mode = BuildMode.WASI
-        self.output_file = None
-
-# Detect if the build is native (for compatibility, but not used)
-def is_native_build():
-    return os.getenv('PERL_NATIVE_BUILD') == '1'
-
-# Run a command and handle errors
 def run_command(cmd):
     try:
         logger.debug(f"Running command: {' '.join(cmd)}")
@@ -36,7 +19,6 @@ def run_command(cmd):
         logger.error(f"Command failed with return code {e.returncode}")
         sys.exit(e.returncode)
 
-# Compile for WASI using the WASI SDK
 def compile_for_wasi(args):
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
@@ -51,26 +33,46 @@ def compile_for_wasi(args):
     logger.info(f"Compiling for WASI: {' '.join(cmd)}")
     run_command(cmd)
 
-# Parse and handle command-line arguments
+def compile_for_host(args):
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+
+    # Use clang from the WASI SDK with host-targeting flags
+    compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
+
+    # Adjust the target for your host platform
+    host_target = os.getenv('HOST_TARGET', 'x86_64-linux-gnu')  # Update as needed for your host
+
+    cmd = [
+        os.path.join(wasi_sdk_path, 'bin', compiler),
+        f"--target={host_target}",
+        "-O2"
+    ] + args
+
+    logger.info(f"Compiling for host: {' '.join(cmd)}")
+    run_command(cmd)
+
+def determine_build_mode(args):
+    # Detect if "try.c" is being compiled
+    for arg in args:
+        if arg.endswith('try.c'):
+            return BuildMode.HOST
+    return BuildMode.WASI
+
 def parse_args():
     if len(sys.argv) < 2:
         logger.error("Usage: wasic [compiler flags and source files]")
         sys.exit(1)
 
-    args = sys.argv[1:]
-    state = WasicState()
-    state.args = args
+    return sys.argv[1:]
 
-    if "-v" in args or "--version" in args:
-        logger.info("wasic version 1.0")
-        sys.exit(0)
-
-    return state
-
-# Main function
 def main():
-    state = parse_args()
-    compile_for_wasi(state.args)
+    args = parse_args()
+    build_mode = determine_build_mode(args)
+
+    if build_mode == BuildMode.HOST:
+        compile_for_host(args)
+    else:
+        compile_for_wasi(args)
 
 if __name__ == '__main__':
     main()
