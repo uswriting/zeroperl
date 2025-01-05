@@ -31,7 +31,7 @@ def compile_for_wasi(args):
     
     # Add setjmp support flags with LTO enabled
     extra_flags = [
-        "--target=wasm32-wasi-threads",
+        "--target=wasm32-wasi",
         "-flto=full",
         "-w",
         "-mllvm", "-wasm-enable-sjlj",
@@ -64,7 +64,7 @@ def main():
             cmd = [
                 f"{os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/bin/clang",
                 f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
-                "--target=wasm32-wasi-threads",
+                "--target=wasm32-wasi",
                 #"-flto=full",
                 "-w"
                 #"-mllvm", "-wasm-enable-sjlj",
