@@ -12,19 +12,26 @@ def compile_with_wasi(args):
     """
     Compile source files for the WASI environment.
     Strips 'cflags' and 'dflags' if encountered to avoid errors.
+    If the environment variable `WASIC_FORCE_HOST` is set, the compilation
+    will be redirected to the host compiler using the correct clang binary.
     """
+    # Clean up arguments by removing unwanted flags
+    args = [arg for arg in args if arg not in {"cflags", "dflags"}]
+
+    # Check for the WASIC_FORCE_HOST environment variable
+    if os.getenv("WASIC_FORCE_HOST"):
+        logger.info("Environment variable WASIC_FORCE_HOST is set. Redirecting to host compiler.")
+        # Use the host clang explicitly
+        compile_with_host(args)
+        return
+
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
-    target = "wasm32-wasi"
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
-
-    # Remove 'cflags' and 'dflags' from arguments if present
-    args = [arg for arg in args if arg not in {"cflags", "dflags"}]
 
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
         f"--sysroot={wasi_sysroot}",
-        #f"--target={target}",
         "-w"
     ] + args
 
@@ -37,13 +44,13 @@ def compile_with_wasi(args):
 
 def compile_with_host(args):
     """
-    Compile source files for the host environment using /usr/bin/clang.
+    Compile source files for the host environment using the correct clang binary.
     """
-    compiler = '/usr/bin/clang'
+    compiler = '/usr/bin/clang++' if any(arg.endswith('.cpp') for arg in args) else '/usr/bin/clang'
 
     cmd = [compiler] + args
 
-    logger.info(f"Compiling for the host with /usr/bin/clang: {' '.join(cmd)}")
+    logger.info(f"Compiling for the host with {compiler}: {' '.join(cmd)}")
     try:
         check_call(cmd)
     except CalledProcessError as e:
