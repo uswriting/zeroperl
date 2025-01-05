@@ -1,7 +1,7 @@
-#ifndef STUBS_H
+#ifndef #ifndef STUBS_H
 #define STUBS_H
 
-// Stub implementations for missing system calls in WASI
+// Inline stub implementations for missing system calls
 static inline int getuid() { return 0; }
 static inline int geteuid() { return 0; }
 static inline int getgid() { return 0; }
