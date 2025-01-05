@@ -1,74 +1,34 @@
 #!/usr/bin/env python3
 """
 wasic - WASI Compiler Wrapper
-Handles compilation requests, either building for host (test programs)
-or targeting WASI (actual build)
+Always compiles using WASI clang and passes through arguments unchanged
 """
 import os
 import sys
-from subprocess import check_call, CalledProcessError, DEVNULL
-
-def is_test_compile(args):
-    """Detect if this is a test compilation (like from Configure)"""
-    source_files = [arg for arg in args if arg.endswith('.c')]
-    return any('try' in f for f in source_files)
-
-def compile_for_host(args):
-    """Compile using host compiler"""
-    cmd = ['cc'] + args
-    print(f"Host compile: {' '.join(cmd)}", file=sys.stderr)
-    try:
-        check_call(cmd)
-        return 0
-    except CalledProcessError as e:
-        return e.returncode
-
-def compile_for_wasi(args):
-    """Compile using WASI SDK"""
-    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
-    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
-    
-    extra_flags = [
-        "--target=wasm32-wasi",
-        f"--sysroot={wasi_sysroot}",
-        "-w",
-        "-mllvm", "-wasm-enable-sjlj",
-        "-Wl,-mllvm,-wasm-enable-sjlj",
-        "-lsetjmp"
-    ]
-    
-    cmd = [f"{wasi_sdk_path}/bin/clang"] + extra_flags + args
-    print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
-    try:
-        check_call(cmd, stderr=DEVNULL)
-        return 0
-    except CalledProcessError as e:
-        return e.returncode
+from subprocess import check_call, CalledProcessError
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: wasic [compiler flags and source files]", file=sys.stderr)
         return 1
     
-    args = sys.argv[1:]
-
-    # Special case: Handle version checks during Configure
-    if len(args) == 1 and args[0] == '-v':
-        return compile_for_host(args)
-
-    # For test compiles during Configure, try WASI first to detect features
-    # but fall back to host compiler to generate runnable test executables
-    if is_test_compile(args):
-        try:
-            compile_for_wasi(args)
-            print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
-            return compile_for_host(args)
-        except:
-            print("Test compile failed with WASI", file=sys.stderr)
-            return 1
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
     
-    # For all other cases, use WASI
-    return compile_for_wasi(args)
+    # Basic WASI settings
+    base_flags = [
+        "--target=wasm32-wasi",
+        f"--sysroot={wasi_sysroot}",
+        "-w",
+    ]
+    
+    cmd = [f"{wasi_sdk_path}/bin/clang"] + base_flags + sys.argv[1:]
+    print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
+    try:
+        check_call(cmd)
+        return 0
+    except CalledProcessError as e:
+        return e.returncode
 
 if __name__ == '__main__':
     sys.exit(main())
