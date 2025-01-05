@@ -106,6 +106,15 @@ jobs:
             d_wait4='undef'
             i_syswait='undef'    # This tells perl not to include sys/wait.h
             d_dirnamlen='undef'
+
+            d_getpwnam='undef'
+            d_getpwent='undef'
+            d_getpwuid='undef' 
+            d_getspnam='undef'
+
+            d_getgrnam='undef'
+            d_getgrgid='undef'
+            d_getgrent='undef'
             
             d_setrgid='undef'
             d_setruid='undef'
@@ -132,6 +141,7 @@ jobs:
             d_shmdt='undef'
             d_shmget='undef'
             d_syscall='undef'
+            
             # Emscripten does not have signals support (documentation isn't 100% clear on this? but see "$EMSCRIPTEN/system/include/libc/setjmp.h")
             # but if you do: grep -r 'Calling stub instead of' "$EMSCRIPTEN"
             # you'll see the unsupported stuff (as of 1.37.35):
