@@ -35,11 +35,10 @@ variables so that wasic etc. are used. Typical usage:
     env = os.environ.copy()
 
     # Core compiler tools
-    env['CC'] = wasic_path
-    env['CXX'] = wasic_path
-    env['LD'] = wasic_path
-    env['LDSHARED'] = wasic_path
-    env['AS'] = wasic_path
+    env['CC'] = 'wasic'
+    env['CXX'] = 'wasic++'
+    env['LD'] = os.path.join(env['WASI_SDK_PATH'], 'bin/wasm-ld')
+    env['LDSHARED'] = os.path.join(env['WASI_SDK_PATH'], 'bin/clang')
     env['AR'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ar')
     env['NM'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-nm')
     env['RANLIB'] = os.path.join(env['WASI_SDK_PATH'], 'bin/llvm-ranlib')
