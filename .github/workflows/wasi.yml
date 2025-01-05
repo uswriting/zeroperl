@@ -283,7 +283,7 @@ jobs:
             lib/auto/Opcode/Opcode.a \
             libperl.a \
             `cat ext.libs` \
-            -lm -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman
+            -lm -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman
       - name: Test WASI perl with wasmtime
         if: success()
         shell: bash
