@@ -174,17 +174,17 @@ jobs:
           export AR="${WASI_SDK_PATH}/bin/llvm-ar"
           export RANLIB="${WASI_SDK_PATH}/bin/llvm-ranlib"
           
-          mkdir wasm
-          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
-          # Copy the custom hints file for WASI
+          mkdir wasm && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
+
           cp hintfile_wasi.sh wasm/hints/wasi.sh
-          # Copy over the ExifTool modules we installed in the native build
-          mkdir -p wasm/prefix/lib/perl5/site_perl/5.40.0/wasi
-          cp -rv native/prefix/lib/perl5/site_perl/5.40.0/Image \
-             wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
-          cp -rv native/prefix/lib/perl5/site_perl/5.40.0/File \
-             wasm/prefix/lib/perl5/site_perl/5.40.0/wasi/
+          
           cd wasm
+          # Ensure the correct directories are created
+          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
+    
+          # Copy the required files
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/ 
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasm/
           
           # Prepare configure arguments for WASI
           sh ./Configure -sde \
@@ -214,10 +214,71 @@ jobs:
             -Dsysroot=$(dirname $(which $CC))/system \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           
-          #make utilities PERL="$PWD/../native/miniperl"
+          ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
+          
+          make utilities PERL="$PWD/../native/miniperl"
           make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
           make install
+          
           unset PERL_NATIVE_BUILD
+          find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
+          find ./prefix
+          
+          $CC -o perlwasi perlmain.o \
+            lib/auto/mro/mro.a \
+            lib/auto/Devel/Peek/Peek.a \
+            lib/auto/File/DosGlob/DosGlob.a \
+            lib/auto/File/Glob/Glob.a \
+            lib/auto/Sys/Syslog/Syslog.a \
+            lib/auto/Sys/Hostname/Hostname.a \
+            lib/auto/PerlIO/via/via.a \
+            lib/auto/PerlIO/mmap/mmap.a \
+            lib/auto/PerlIO/encoding/encoding.a \
+            lib/auto/B/B.a \
+            lib/auto/attributes/attributes.a \
+            lib/auto/Unicode/Normalize/Normalize.a \
+            lib/auto/Unicode/Collate/Collate.a \
+            lib/auto/threads/threads.a \
+            lib/auto/threads/shared/shared.a \
+            lib/auto/IPC/SysV/SysV.a \
+            lib/auto/re/re.a \
+            lib/auto/Digest/MD5/MD5.a \
+            lib/auto/Digest/SHA/SHA.a \
+            lib/auto/SDBM_File/SDBM_File.a \
+            lib/auto/Math/BigInt/FastCalc/FastCalc.a \
+            lib/auto/Data/Dumper/Dumper.a \
+            lib/auto/I18N/Langinfo/Langinfo.a \
+            lib/auto/Time/HiRes/HiRes.a \
+            lib/auto/Time/Piece/Piece.a \
+            lib/auto/IO/IO.a \
+            lib/auto/Socket/Socket.a \
+            lib/auto/Hash/Util/FieldHash/FieldHash.a \
+            lib/auto/Hash/Util/Util.a \
+            lib/auto/Filter/Util/Call/Call.a \
+            lib/auto/POSIX/POSIX.a \
+            lib/auto/Encode/Unicode/Unicode.a \
+            lib/auto/Encode/Encode.a \
+            lib/auto/Encode/JP/JP.a \
+            lib/auto/Encode/KR/KR.a \
+            lib/auto/Encode/EBCDIC/EBCDIC.a \
+            lib/auto/Encode/CN/CN.a \
+            lib/auto/Encode/Symbol/Symbol.a \
+            lib/auto/Encode/Byte/Byte.a \
+            lib/auto/Encode/TW/TW.a \
+            lib/auto/Compress/Raw/Zlib/Zlib.a \
+            lib/auto/Compress/Raw/Bzip2/Bzip2.a \
+            lib/auto/MIME/Base64/Base64.a \
+            lib/auto/Cwd/Cwd.a \
+            lib/auto/Storable/Storable.a \
+            lib/auto/List/Util/Util.a \
+            lib/auto/Fcntl/Fcntl.a \
+            lib/auto/Opcode/Opcode.a \
+            libperl.a \
+            `cat ext.libs` \
+            -lm -lwasi-emulated-signal
+
+          ls
+          
 
       - name: Test WASI perl with wasmtime
         if: success()
