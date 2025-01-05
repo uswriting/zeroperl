@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 wasic - WASI Compiler Wrapper
-Handles compilation requests, either building for host (test programs)
+Handles compilation requests, either building for host (test programs and native tools)
 or targeting WASI (actual build)
 """
 import os
@@ -14,8 +14,12 @@ def is_test_compile(args):
     source_files = [arg for arg in args if arg.endswith('.c')]
     return any('try' in f or 'test' in f for f in source_files)
 
+def is_native_build():
+    """Check if we're in the native build phase"""
+    return os.getenv('PERL_NATIVE_BUILD') == '1'
+
 def compile_for_host(args):
-    """Compile using host compiler for test programs"""
+    """Compile using host compiler"""
     cmd = ['cc'] + args
     print(f"Host compile: {' '.join(cmd)}", file=sys.stderr)
     try:
@@ -55,21 +59,21 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: wasic [compiler flags and source files]", file=sys.stderr)
         return 1
-
+    
     args = sys.argv[1:]
     
+    # If we're in native build mode, always use host compiler
+    if is_native_build():
+        return compile_for_host(args)
+    
+    # For test compiles, try WASI first to detect features
     if is_test_compile(args):
         try:
-            # Try WASI compilation first, suppressing stderr
             cmd = [
                 f"{os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/bin/clang",
                 f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
                 "--target=wasm32-wasi",
-                #"-flto=full",
                 "-w"
-                #"-mllvm", "-wasm-enable-sjlj",
-                #"-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
-                #"-lsetjmp"
             ] + args
             check_call(cmd, stderr=DEVNULL)
             print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
@@ -78,9 +82,9 @@ def main():
         except CalledProcessError:
             print("Test compile failed with WASI", file=sys.stderr)
             return 1
-    else:
-        # For non-test compiles, use WASI only
-        return compile_for_wasi(args)
+    
+    # For non-test compiles in non-native mode, use WASI
+    return compile_for_wasi(args)
 
 if __name__ == '__main__':
     sys.exit(main())
