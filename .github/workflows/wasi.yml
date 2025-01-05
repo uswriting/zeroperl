@@ -162,32 +162,21 @@ jobs:
       - name: Install Perl (WASI build)
         shell: bash
         run: |
-          export PERL_NATIVE_BUILD=1
           REPO_ROOT=$PWD
-          chmod +x $REPO_ROOT/wasiconfigure $REPO_ROOT/wasimake $REPO_ROOT/wasic
+          chmod +x $REPO_ROOT/wasic $REPO_ROOT/wasimake $REPO_ROOT/wasiconfigure
           export WASI_SDK_PATH=/opt/wasi-sdk
-          export PATH="$WASI_SDK_PATH/bin:$PATH"
-          
-          # Because "native" is in the same directory, we can reference the host-miniperl etc.
-          # We'll set CC, AR, RANLIB, etc. to the WASI versions:
-          export CC="$REPO_ROOT/wasic"
-          export AR="${WASI_SDK_PATH}/bin/llvm-ar"
-          export RANLIB="${WASI_SDK_PATH}/bin/llvm-ranlib"
-          
-          mkdir wasm && curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
+          export PATH="$REPO_ROOT:$PATH"
 
+          mkdir wasm
+          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           cp hintfile_wasi.sh wasm/hints/wasi.sh
-          
+
           cd wasm
-          # Ensure the correct directories are created
-          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasm
-    
-          # Copy the required files
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasm/ 
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasm/
-          
-          # Prepare configure arguments for WASI
-          sh ./Configure -sde \
+          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+
+          $REPO_ROOT/wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
             -Dloclibpth='' \
@@ -201,32 +190,28 @@ jobs:
             -Dmyhostname='localhost' \
             -Dmydomain='.local' \
             -Dperladmin=root \
-            -Dcc="$CC" \
-            -Dld="$CC" \
-            -Dar="$AR" \
-            -Dranlib="$RANLIB" \
+            -Dcc="$REPO_ROOT/wasic" \
+            -Dld="$REPO_ROOT/wasic" \
+            -Dar="${WASI_SDK_PATH}/bin/llvm-ar" \
+            -Dranlib="${WASI_SDK_PATH}/bin/llvm-ranlib" \
             -Doptimize="-O2" \
             -Dlibs='-lm' \
             -Dhintfile=wasi \
             -Dhostperl="$PWD/../native/miniperl" \
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="$PWD/prefix" \
-            -Dsysroot=$(dirname $(which $CC))/system \
+            -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
-          
-          ln -s $PWD/pod/perldelta.pod .; ln $PWD/README.* ..
 
-          unset PERL_NATIVE_BUILD
-          
-          make utilities PERL="$PWD/../native/miniperl"
-          make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
-          make install
-          
-         
-          find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
-          find ./prefix
-          
-          $CC -o perlwasi perlmain.o \
+          ln -s $PWD/pod/perldelta.pod .
+          ln $PWD/README.* ..
+
+          $REPO_ROOT/wasimake make utilities PERL="$PWD/../native/miniperl"
+          $REPO_ROOT/wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+          $REPO_ROOT/wasimake make install
+
+          # Final linking step
+          $REPO_ROOT/wasic -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
@@ -278,9 +263,6 @@ jobs:
             libperl.a \
             `cat ext.libs` \
             -lm -lwasi-emulated-signal
-
-          ls
-          
 
       - name: Test WASI perl with wasmtime
         if: success()
