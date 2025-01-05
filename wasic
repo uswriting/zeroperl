@@ -33,6 +33,7 @@ def compile_for_wasi(args):
     extra_flags = [
         "--target=wasm32-wasi",
         "-flto=full",
+        "-w",
         "-mllvm", "-wasm-enable-sjlj",
         "-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
         "-lsetjmp"
@@ -65,6 +66,7 @@ def main():
                 f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
                 "--target=wasm32-wasi",
                 "-flto=full",
+                "-w",
                 "-mllvm", "-wasm-enable-sjlj",
                 "-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
                 "-lsetjmp"
