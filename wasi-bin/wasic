@@ -12,6 +12,9 @@ class BuildMode:
     HOST = "host"
 
 def run_command(cmd):
+    """
+    Run a command using subprocess.check_call and handle errors.
+    """
     try:
         logger.debug(f"Running command: {' '.join(cmd)}")
         check_call(cmd)
@@ -20,6 +23,9 @@ def run_command(cmd):
         sys.exit(e.returncode)
 
 def compile_for_wasi(args):
+    """
+    Compile source files for the WASI environment.
+    """
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
 
@@ -34,9 +40,11 @@ def compile_for_wasi(args):
     run_command(cmd)
 
 def compile_for_host(args):
+    """
+    Compile source files for the host environment.
+    """
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
 
-    # Use clang from the WASI SDK with host-targeting flags
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
     # Adjust the target for your host platform
@@ -52,20 +60,27 @@ def compile_for_host(args):
     run_command(cmd)
 
 def determine_build_mode(args):
-    # Detect if "try.c" is being compiled
+    """
+    Determine the build mode (WASI or HOST) based on the arguments.
+    """
     for arg in args:
         if arg.endswith('try.c'):
             return BuildMode.HOST
     return BuildMode.WASI
 
 def parse_args():
+    """
+    Parse command-line arguments.
+    """
     if len(sys.argv) < 2:
         logger.error("Usage: wasic [compiler flags and source files]")
         sys.exit(1)
-
     return sys.argv[1:]
 
 def main():
+    """
+    Main function to parse arguments and trigger the appropriate build process.
+    """
     args = parse_args()
     build_mode = determine_build_mode(args)
 
