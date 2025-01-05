@@ -235,10 +235,11 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-          find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
-          find ./prefix
+          #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
+          #find ./prefix
           
-          wasic --target=wasm32-wasi -flto=full -o perlwasi -static perlmain.o \
+          wasic --target=wasm32-wasi -flto=off -o perlwasi -static perlmain.o \
+            -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
@@ -284,10 +285,16 @@ jobs:
             lib/auto/List/Util/Util.a \
             lib/auto/Fcntl/Fcntl.a \
             lib/auto/Opcode/Opcode.a \
-            libperl.a \
             `cat ext.libs` \
-            -lm -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman \
+            -lm \
+            -mllvm -wasm-enable-sjlj \
+            -lwasi-emulated-signal \
+            -lwasi-emulated-getpid \
+            -lwasi-emulated-process-clocks \
+            -lwasi-emulated-mman \
+            -Wl,--export-all \
             -v
+
             
       - name: Test WASI perl with wasmtime
         if: success()
