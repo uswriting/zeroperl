@@ -11,15 +11,15 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 def compile_with_wasi(args):
     """
     Compile source files for the WASI environment.
-    Strips 'cflags' if encountered to avoid errors.
+    Strips 'cflags' and 'dflags' if encountered to avoid errors.
     """
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
     target = "wasm32-wasi"
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
-    # Remove 'cflags' from arguments if present
-    args = [arg for arg in args if arg != "cflags"]
+    # Remove 'cflags' and 'dflags' from arguments if present
+    args = [arg for arg in args if arg not in {"cflags", "dflags"}]
 
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
