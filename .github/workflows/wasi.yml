@@ -201,6 +201,7 @@ jobs:
           mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+          export WASIC_FORCE_HOST=1
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
@@ -234,7 +235,8 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-          wasic -flto=full -o perlwasi perlmain.o \
+          unset WASIC_FORCE_HOST
+          wasic --target=wasm32-wasi -flto=full -o perlwasi perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
