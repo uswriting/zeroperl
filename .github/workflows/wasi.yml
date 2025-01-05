@@ -242,8 +242,8 @@ jobs:
           # Final linking step
           #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           #find ./prefix
-          
-          wasic -o perlwasi -static perlmain.o \
+          wasic --target=wasm32-wasi -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
+          wasic -o perlwasi -static perlmain.o stubs.o \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
