@@ -235,9 +235,10 @@ jobs:
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           # Final linking step
-
+          find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
+          find ./prefix
           
-          wasic --target=wasm32-wasi -flto=full -o perlwasi -static miniperlmain.o \
+          wasic --target=wasm32-wasi -flto=full -o perlwasi -static perlmain.o \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
