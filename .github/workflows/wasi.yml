@@ -105,6 +105,7 @@ jobs:
             d_wait3='undef'
             d_wait4='undef'
             i_syswait='undef'    # This tells perl not to include sys/wait.h
+            d_dirnamlen='undef'
             
             d_setrgid='undef'
             d_setruid='undef'
