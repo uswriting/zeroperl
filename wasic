@@ -31,7 +31,6 @@ def compile_for_wasi(args):
     extra_flags = [
         "--target=wasm32-wasi",
         f"--sysroot={wasi_sysroot}",
-        "-flto=full",
         "-w",
         "-mllvm", "-wasm-enable-sjlj",
         "-Wl,-mllvm,-wasm-enable-sjlj",
