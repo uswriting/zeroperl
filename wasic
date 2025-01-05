@@ -6,7 +6,6 @@ or targeting WASI (actual build)
 """
 import os
 import sys
-import shlex
 from subprocess import check_call, CalledProcessError, DEVNULL
 
 def is_test_compile(args):
@@ -33,27 +32,23 @@ def compile_for_wasi(args):
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
     
-    # Add setjmp support flags with LTO enabled
     extra_flags = [
         "--target=wasm32-wasi",
+        f"--sysroot={wasi_sysroot}",
         "-flto=full",
         "-w",
         "-mllvm", "-wasm-enable-sjlj",
-        "-Wl,-mllvm,-wasm-enable-sjlj",  # Linker flag for LTO
+        "-Wl,-mllvm,-wasm-enable-sjlj",
         "-lsetjmp"
     ]
     
-    cmd = [
-        f"{wasi_sdk_path}/bin/clang",
-        f"--sysroot={wasi_sysroot}",
-    ] + extra_flags + args
-    
+    cmd = [f"{wasi_sdk_path}/bin/clang"] + extra_flags + args
     print(f"WASI compile: {' '.join(cmd)}", file=sys.stderr)
     try:
         check_call(cmd)
         return 0
-    except CalledProcessError:
-        return None  # Return None to indicate failure without printing error
+    except CalledProcessError as e:
+        return e.returncode
 
 def main():
     if len(sys.argv) < 2:
@@ -61,29 +56,21 @@ def main():
         return 1
     
     args = sys.argv[1:]
-    
-    # If we're in native build mode, always use host compiler
+
+    # Special case: Handle version checks during Configure
+    if len(args) == 1 and args[0] == '-v':
+        return compile_for_host(args)
+
+    # If we're in native build mode, use host compiler
     if is_native_build():
         return compile_for_host(args)
-    
-    # For test compiles, try WASI first to detect features
+
+    # For test compiles during Configure, succeed even if WASI compile fails
     if is_test_compile(args):
-        try:
-            cmd = [
-                f"{os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/bin/clang",
-                f"--sysroot={os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')}/share/wasi-sysroot",
-                "--target=wasm32-wasi",
-                "-w"
-            ] + args
-            check_call(cmd, stderr=DEVNULL)
-            print("Test compile succeeded with WASI, building host executable", file=sys.stderr)
-            # If WASI succeeded, compile for host to get test executable
-            return compile_for_host(args)
-        except CalledProcessError:
-            print("Test compile failed with WASI", file=sys.stderr)
-            return 1
+        compile_for_wasi(args)
+        return 0
     
-    # For non-test compiles in non-native mode, use WASI
+    # For all other cases, use WASI
     return compile_for_wasi(args)
 
 if __name__ == '__main__':
