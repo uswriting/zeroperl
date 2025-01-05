@@ -32,6 +32,7 @@ def compile_with_wasi(args):
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
         f"--sysroot={wasi_sysroot}",
+        "--target=wasm32-wasi",
         "-w"
     ] + args
 
