@@ -14,12 +14,13 @@ def compile_with_wasi(args):
     """
     wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
     wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
-
+    target = "wasm32-wasi"
     compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
 
     cmd = [
         os.path.join(wasi_sdk_path, 'bin', compiler),
         f"--sysroot={wasi_sysroot}",
+        f"--target={target}",
         "-w"
     ] + args
 
