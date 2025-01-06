@@ -299,7 +299,7 @@ jobs:
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
             -Wl,--export=main \
-            --entry=main \
+            -Wl,--entry=main \
             -v -ferror-limit=0
 
             
