@@ -9,7 +9,7 @@ static PerlInterpreter *my_perl;
 
 int main(int argc, char *argv[]) {
     puts("wasiperl: starting up...");
-    setlocale(LC_ALL, "C");
+
     
     PERL_SYS_INIT3(&argc, &argv, NULL);
     
