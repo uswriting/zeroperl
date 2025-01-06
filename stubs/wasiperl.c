@@ -14,21 +14,7 @@ static PerlInterpreter *my_perl;
 
 int main(int argc, char *argv[]) {
     int exitstatus;
-    puts("wasiperl: starting up...");
-    
-    // Dump all command line arguments
-    printf("Number of arguments: %d\n", argc);
-    for (int i = 0; i < argc; i++) {
-        printf("argv[%d]: '%s'\n", i, argv[i]);
-    }
-    
-    // Dump environment variables
-    printf("\nEnvironment variables:\n");
-    for (char **env = environ; env && *env; env++) {
-        printf("env: '%s'\n", *env);
-    }
-    printf("\n");
-    
+
     PERL_SYS_INIT3(&argc, &argv, &environ);
     PERL_SYS_FPU_INIT;
     
@@ -41,15 +27,7 @@ int main(int argc, char *argv[]) {
     PL_perl_destruct_level = 0;
     PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     
-    // Print arguments again after PERL_SYS_INIT3 to see if they changed
-    printf("After PERL_SYS_INIT3:\n");
-    printf("Number of arguments: %d\n", argc);
-    for (int i = 0; i < argc; i++) {
-        printf("argv[%d]: '%s'\n", i, argv[i]);
-    }
-    printf("\n");
-    
-    if (!perl_parse(my_perl, xs_init, argc, argv, (char **)NULL))) {
+    if (!perl_parse(my_perl, xs_init, argc, argv, (char **)NULL)) {
         /* perl_parse() may end up starting its own run loops, which
          * might end up "leaking" PL_restartop from the parse phase into
          * the run phase which then ends up confusing run_body(). This
