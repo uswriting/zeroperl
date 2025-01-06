@@ -212,7 +212,7 @@ jobs:
           mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-          patch ./cop.h ${{ github.workspace }}/patches/wasi-exit.patch
+          chmod u+w .cop.h && patch ./cop.h ${{ github.workspace }}/patches/wasi-exit.patch && chmod u-w ./cop.h
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
           wasiconfigure sh ./Configure -sde \
