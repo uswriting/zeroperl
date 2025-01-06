@@ -13,6 +13,8 @@ extern char **environ;
 static void xs_init(pTHX);
 static PerlInterpreter *my_perl;
 
+
+
 int main(int argc, char *argv[]) {
     int exitstatus;
 
@@ -29,6 +31,7 @@ int main(int argc, char *argv[]) {
     // Disable perl's internal cleanup on exit for WASI
     PL_perl_destruct_level = 0;
     PL_exit_flags &= ~PERL_EXIT_DESTRUCT_END;
+    PL_exit_flags |= PERL_EXIT_ABORT;
     
     exitstatus = 0;
     if (!perl_parse(my_perl, xs_init, argc, argv, (char **)NULL)) {
