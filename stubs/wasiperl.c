@@ -6,8 +6,6 @@
 static void xs_init(pTHX);
 static PerlInterpreter *my_perl;
 
-__attribute__((export_name("_start")))
-__attribute__((visibility("default")))
 int main(int argc, char *argv[]) {
     PERL_SYS_INIT3(&argc, &argv, NULL);
     
