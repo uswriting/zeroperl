@@ -1,0 +1,42 @@
+From ef0df397a2e288d79ed0a858f64d481951c7b0c8 Mon Sep 17 00:00:00 2001
+From: Karl Williamson <khw@cpan.org>
+Date: Fri, 29 Nov 2024 20:51:02 -0700
+Subject: [PATCH] musl Configure trial
+
+---
+ Configure | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Configure b/Configure
+index 4da7088bff..b23d431a78 100755
+--- a/Configure
++++ b/Configure
+@@ -5769,7 +5769,7 @@ $cc -o ${mc_file} $optimize $ccflags $ldflags $* ${mc_file}.c $libs > /dev/null
+ compile_ok='
+ mc_file=$1;
+ shift;
+-$cc -o ${mc_file} $optimize $ccflags $ldflags $* ${mc_file}.c $libs > /dev/null 2>&1;'
++$cc -o ${mc_file} $optimize $ccflags $ldflags $* ${mc_file}.c $libs > /dev/null 2>&4;'
+ 
+ : stub, used only to satisfy other units
+ i_stdlib='define'
+@@ -17724,7 +17724,7 @@ main (const int argc, const char ** argv)
+         /* Here isn't name=value pairs.  Find the position of the alternate */
+         const char * alt_pos = strstr(lc_all, alternate);
+         if (! alt_pos) {
+-            fprintf(stderr, "Couldn't find '%s' in '%'s\n", alternate, lc_all);
++            fprintf(stderr, "Couldn't find '%s' in '%s'\n", alternate, lc_all);
+             return 1;
+         }
+ 
+@@ -17809,7 +17809,7 @@ main (const int argc, const char ** argv)
+ EOF
+ set try
+ if eval $compile_ok; then
+-    output=`$run ./try 2>/dev/null`
++    output=`$run ./try 2>&4`
+     separator=`echo "$output" | $sed 1q`
+     case $separator in
+ 	"\"=;\"")
+-- 
+2.34.1
