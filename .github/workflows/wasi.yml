@@ -298,8 +298,8 @@ jobs:
             -lwasi-emulated-getpid \
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
-            -Wl,--export=main \
-            -Wl,--entry=main \
+            -Wl,--export=_start \
+            -Wl,--entry=_start \
             -v -ferror-limit=0
 
             
