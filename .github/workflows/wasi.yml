@@ -257,7 +257,7 @@ jobs:
             -I${{ github.workspace }}/stubs \
             -I. \
             -lwasi-emulated-mman
-
+          
           wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
@@ -312,8 +312,6 @@ jobs:
             -lwasi-emulated-getpid \
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
-            -Wl,--export=_start \
-            -Wl,--entry=_start \
             -v -ferror-limit=0
 
             
