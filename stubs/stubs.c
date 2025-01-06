@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdarg.h>
 
 // Define mode_t as unsigned int if not already defined
 typedef unsigned int mode_t;
@@ -24,7 +25,10 @@ mode_t umask(mode_t mask) { return 0; }
 
 // Program execution
 int execvp(const char *file, char *const argv[]) { return -1; }
-int execl(const char *path, const char *arg, ...) { return -1; }
+int execl(const char *path, const char *arg1, const char *arg2, const char *arg3, const char *arg4) { 
+    // Stub implementation: Return -1 to indicate failure
+    return -1; 
+}
 int execv(const char *path, char *const argv[]) { return -1; }
 
 // Process creation
