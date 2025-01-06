@@ -243,7 +243,7 @@ jobs:
           #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           #find ./prefix
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
-          wasic -o perlwasi -static perlmain.o stubs.o \
+          wasic -o perlwasi -flto=full -static perlmain.o stubs.o \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
             lib/auto/mro/mro.a \
