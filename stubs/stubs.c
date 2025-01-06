@@ -28,12 +28,12 @@ int execl(const char *path, const char *arg, ...) { return -1; }
 int execv(const char *path, char *const argv[]) { return -1; }
 
 // Process creation
-int do_aspawn() { return -1; }
-int do_spawn() { return -1; }
+int do_aspawn(int arg1, int arg2, int arg3) { return -1; } // Adjusted signature
+int do_spawn(int arg1) { return -1; } // Adjusted signature
 
 // Pipe and wait
 int PerlProc_pipe_cloexec(int fds[2]) { return -1; }
 int wait(int *status) { return -1; }
 
 // Timezone functions
-void tzset() {}
+int tzset() { return 0; } // Adjusted to return int as expected
