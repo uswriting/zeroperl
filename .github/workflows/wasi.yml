@@ -128,7 +128,6 @@ jobs:
             d_setgrent_r='undef'
             d_endgrent='undef'
             d_endgrent_r='undef'
-
             d_getuid='undef'
             d_geteuid='undef'
             d_getgid='undef'
@@ -244,7 +243,8 @@ jobs:
           #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           #find ./prefix
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
-          wasic -o perlwasi -flto=full -static perlmain.o stubs.o \
+          wasic -c ${{ github.workspace }}/stubs/wasiperl.c -o wasiperl.o
+          wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
             lib/auto/mro/mro.a \
@@ -299,6 +299,7 @@ jobs:
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
             -Wl,--export=main \
+            -Wl,--entry=main \
             -v -ferror-limit=0
 
             
