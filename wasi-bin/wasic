@@ -66,15 +66,19 @@ def handle_try_file(test_file):
     - If WASI compilation fails, exit with a non-zero status.
     """
     logger.info(f"Handling special case for `{test_file}`")
-
     # Attempt to compile with WASI
+    wasi_flags = [
+        "-D_WASI_EMULATED_PROCESS_CLOCKS", "-lwasi-emulated-process-clocks",
+        "-D_WASI_EMULATED_GETPID", "-lwasi-emulated-getpid",
+        "-D_WASI_EMULATED_SIGNAL", "-lwasi-emulated-signal",
+        "-lwasi-emulated-mman"
+    ]
     try:
-        compile_with_wasi([test_file, "-o", "try"])
+        compile_with_wasi([test_file, "-o", "try"] + wasi_flags)
         logger.info(f"`{test_file}` compiled successfully with WASI.")
     except CalledProcessError:
         logger.error(f"`{test_file}` cannot be compiled with WASI. Exiting.")
         sys.exit(1)
-
     # Compile with host if WASI succeeded
     compile_with_host([test_file, "-o", "try"])
 
