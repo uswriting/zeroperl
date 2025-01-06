@@ -7,22 +7,30 @@
 static void xs_init(pTHX);
 static PerlInterpreter *my_perl;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[], char **env) {
+    int exitstatus;
     puts("wasiperl: starting up...");
-
-    PERL_SYS_INIT3(&argc, &argv, NULL);
+    
+    PERL_SYS_INIT3(&argc, &argv, &env);
+    PERL_SYS_FPU_INIT;
     
     my_perl = perl_alloc();
-    perl_construct(my_perl);
+    if (!my_perl) {
+        return 1;
+    }
     
-    if (!perl_parse(my_perl, xs_init, argc, argv, NULL)) {
+    perl_construct(my_perl);
+    PL_perl_destruct_level = 0;
+    PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
+    
+    if (!perl_parse(my_perl, xs_init, argc, argv, env)) {
         perl_run(my_perl);
     }
     
-    perl_destruct(my_perl);
+    exitstatus = perl_destruct(my_perl);
     perl_free(my_perl);
     PERL_SYS_TERM();
-    return 0;
+    return exitstatus;
 }
 
 /* External module bootstraps */
