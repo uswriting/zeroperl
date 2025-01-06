@@ -1,3 +1,7 @@
+#define PERL_IN_MINIPERLMAIN_C
+/* work round bug in MakeMaker which doesn't currently (2019) supply this
+ * flag when making a statically linked perl */
+#define PERL_CORE 1
 #include <stdio.h>
 #include <locale.h>
 #include "EXTERN.h"
@@ -45,7 +49,12 @@ int main(int argc, char *argv[]) {
     }
     printf("\n");
     
-    if (!perl_parse(my_perl, xs_init, argc, argv, environ)) {
+    if (!perl_parse(my_perl, xs_init, argc, argv, (char **)NULL))) {
+        /* perl_parse() may end up starting its own run loops, which
+         * might end up "leaking" PL_restartop from the parse phase into
+         * the run phase which then ends up confusing run_body(). This
+         * leakage shouldn't happen and if it does its a bug. */
+        assert(!PL_restartop);
         perl_run(my_perl);
     }
     
