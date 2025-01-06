@@ -206,7 +206,7 @@ jobs:
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
 
-          patch ./Configure ${{ github.workspace }}/Configure.patch
+          patch ./Configure ${{ github.workspace }}/patches/Configure.patch
    
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
