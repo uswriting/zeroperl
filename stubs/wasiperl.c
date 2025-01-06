@@ -25,19 +25,19 @@ int main(int argc, char *argv[]) {
     }
     
     perl_construct(my_perl);
-    PL_perl_destruct_level = 0;
-    PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     
+    // Disable perl's internal cleanup on exit for WASI
+    PL_perl_destruct_level = 0;
+    PL_exit_flags &= ~PERL_EXIT_DESTRUCT_END;
+    
+    exitstatus = 0;
     if (!perl_parse(my_perl, xs_init, argc, argv, (char **)NULL)) {
-        /* perl_parse() may end up starting its own run loops, which
-         * might end up "leaking" PL_restartop from the parse phase into
-         * the run phase which then ends up confusing run_body(). This
-         * leakage shouldn't happen and if it does its a bug. */
         assert(!PL_restartop);
-        perl_run(my_perl);
+        exitstatus = perl_run(my_perl);
     }
     
-    exitstatus = perl_destruct(my_perl);
+    // Perform minimal cleanup for WASI
+    perl_destruct(my_perl);
     perl_free(my_perl);
     PERL_SYS_TERM();
     return exitstatus;
