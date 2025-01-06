@@ -4,14 +4,15 @@
 #include "perl.h"
 #include "XSUB.h"
 
+extern char **environ;
 static void xs_init(pTHX);
 static PerlInterpreter *my_perl;
 
-int main(int argc, char *argv[], char **env) {
+int main(int argc, char *argv[]) {
     int exitstatus;
     puts("wasiperl: starting up...");
     
-    PERL_SYS_INIT3(&argc, &argv, &env);
+    PERL_SYS_INIT3(&argc, &argv, &environ);
     PERL_SYS_FPU_INIT;
     
     my_perl = perl_alloc();
@@ -23,7 +24,7 @@ int main(int argc, char *argv[], char **env) {
     PL_perl_destruct_level = 0;
     PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     
-    if (!perl_parse(my_perl, xs_init, argc, argv, env)) {
+    if (!perl_parse(my_perl, xs_init, argc, argv, environ)) {
         perl_run(my_perl);
     }
     
