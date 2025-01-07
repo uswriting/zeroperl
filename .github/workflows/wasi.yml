@@ -222,9 +222,7 @@ jobs:
           curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           cp hintfile_wasi.sh wasm/hints/wasi.sh
           cd wasm
-          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
@@ -343,6 +341,9 @@ jobs:
             -v -ferror-limit=0
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
+
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
 
             
       - name: Test WASI perl with wasmtime
