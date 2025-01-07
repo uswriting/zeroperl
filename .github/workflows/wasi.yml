@@ -207,8 +207,8 @@ jobs:
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
-            ccflags='$ccflags -mllvm -wasm-enable-sjlj -UHAS_PASSWD -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
-            cppflags='-lm -mllvm -wasm-enable-sjlj -UHAS_PASSWD -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            ccflags='$ccflags -mllvm -wasm-enable-sjlj -UHAS_GROUP -UHAS_PASSWD -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -mllvm -wasm-enable-sjlj -UHAS_GROUP -UHAS_PASSWD -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
       - name: Install Perl (WASI build)
         shell: bash
@@ -273,7 +273,7 @@ jobs:
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
             -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS \
-            -DFAKE_BIT_BUCKET -DNO_LOCALE -UHAS_PASSWD \
+            -DFAKE_BIT_BUCKET -DNO_LOCALE -UHAS_GROUP -UHAS_PASSWD \
             -Wno-null-pointer-arithmetic \
             -fno-unwind-tables -fno-exceptions \
             -Wno-int-conversion \
