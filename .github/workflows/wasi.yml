@@ -16,6 +16,19 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Install Binaryen
+        run: |
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
+          tar -xzf binaryen.tar.gz
+          sudo cp binaryen-version_121/bin/* /opt/
+          rm -rf binaryen.tar.gz binaryen-version_121
+          echo "/opt" >> $GITHUB_PATH
+
+
+
+      - name: Test Binaryen Installation
+        run: wasm-opt --version
+
 
       - name: Set up Clang
         uses: egor-tensin/setup-clang@v1
@@ -190,12 +203,12 @@ jobs:
             #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
             #selectminbits='32'
             #alignbytes='4'
-            noextensions='Socket POSIX File/Glob'
+            noextensions='Socket POSIX'
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
-            ldflags='-static -Wl,--whole-archive -Wl,--no-whole-archive -flto=full -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
-            ccflags='$ccflags -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
-            cppflags='-lm -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
+            ccflags='$ccflags -mllvm -wasm-enable-sjlj -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -mllvm -wasm-enable-sjlj -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
       - name: Install Perl (WASI build)
         shell: bash
@@ -209,10 +222,8 @@ jobs:
           curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           cp hintfile_wasi.sh wasm/hints/wasi.sh
           cd wasm
-          mkdir -p ./prefix/lib/perl5/site_perl/5.40.0/wasi
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-          cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-          chmod u+w ./perl.c && patch ./perl.c ${{ github.workspace }}/patches/wasi-exit.patch && chmod u-w ./perl.c
+
+          chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
           wasiconfigure sh ./Configure -sde \
@@ -226,8 +237,8 @@ jobs:
             -Dosname="wasi" \
             -Darchname="wasm32-wasi" \
             -Dosvers="wasi${WASI_SDK_VERSION}" \
-            -Dmyhostname='localhost' \
-            -Dmydomain='.local' \
+            -Dmyhostname='objex.ai' \
+            -Dmydomain='objex.ai' \
             -Dperladmin=root \
             -Dcc="wasic" \
             -Dld="wasic" \
@@ -240,7 +251,7 @@ jobs:
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="$PWD/prefix" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
-            -Dstatic_ext="mro Devel/Peek File/DosGlob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
           wasimake make utilities PERL="$PWD/../native/miniperl"
@@ -255,6 +266,8 @@ jobs:
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
           cp ${{ github.workspace }}/stubs/wasiperl.c . && wasic -c wasiperl.c -o wasiperl.o -I. \
+            -mllvm -wasm-enable-sjlj \
+            -lsetjmp \
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
             -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS \
@@ -269,11 +282,13 @@ jobs:
             -lwasi-emulated-mman
           
           wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
+            -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
+            lib/auto/File/Glob/Glob.a \
             lib/auto/Sys/Syslog/Syslog.a \
             lib/auto/Sys/Hostname/Hostname.a \
             lib/auto/PerlIO/via/via.a \
@@ -322,7 +337,13 @@ jobs:
             -lwasi-emulated-getpid \
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
+            -lsetjmp \
             -v -ferror-limit=0
+
+           wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
+
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
 
             
       - name: Test WASI perl with wasmtime
@@ -350,5 +371,5 @@ jobs:
         with:
           path: |
             wasm/config.h
-            wasm/perl
+            wasm/perl.wasm
             wasm/perlwasi
