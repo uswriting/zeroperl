@@ -1,0 +1,50 @@
+diff --git a/ext/File-Glob/bsd_glob.c b/ext/File-Glob/bsd_glob.c
+index 3d402e0b45..f78836d136 100644
+--- a/ext/File-Glob/bsd_glob.c
++++ b/ext/File-Glob/bsd_glob.c
+@@ -70,14 +70,6 @@ static char sscsid[]=  "$OpenBSD: glob.c,v 1.8.10.1 2001/04/10 jason Exp $";
+ #include <XSUB.h>
+ 
+ #include "bsd_glob.h"
+-#ifdef I_PWD
+-#	include <pwd.h>
+-#else
+-#if defined(HAS_PASSWD) && !defined(VMS)
+-        struct passwd *getpwnam(char *);
+-        struct passwd *getpwuid(Uid_t);
+-#endif
+-#endif
+ 
+ #ifndef MAXPATHLEN
+ #  ifdef PATH_MAX
+@@ -454,13 +446,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
+                  * or $USERPROFILE on DOSISH systems
+                  */
+                 if ((h = PerlEnv_getenv("HOME")) == NULL) {
+-#ifdef HAS_PASSWD
+-                        struct passwd *pwd;
+-                        if ((pwd = getpwuid(getuid())) == NULL)
+-                                return pattern;
+-                        else
+-                                h = pwd->pw_dir;
+-#elif DOSISH
++#ifdef DOSISH
+                         /*
+                          * When no passwd file, fallback to the USERPROFILE
+                          * environment variable on DOSish systems.
+@@ -476,15 +462,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
+                 /*
+                  * Expand a ~user
+                  */
+-#ifdef HAS_PASSWD
+-                struct passwd *pwd;
+-                if ((pwd = getpwnam((char*) patbuf)) == NULL)
+-                        return pattern;
+-                else
+-                        h = pwd->pw_dir;
+-#else
+                 return pattern;
+-#endif
+         }
+ 
+         /* Copy the home directory */
