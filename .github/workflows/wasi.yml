@@ -239,8 +239,8 @@ jobs:
             -Dosname="wasi" \
             -Darchname="wasm32-wasi" \
             -Dosvers="wasi${WASI_SDK_VERSION}" \
-            -Dmyhostname='localhost' \
-            -Dmydomain='.local' \
+            -Dmyhostname='objex.ai' \
+            -Dmydomain='objex.ai' \
             -Dperladmin=root \
             -Dcc="wasic" \
             -Dld="wasic" \
