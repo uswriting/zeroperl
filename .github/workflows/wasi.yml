@@ -342,8 +342,8 @@ jobs:
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
 
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/site_perl/5.40.0/wasi/
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/site_perl/5.40.0/wasi/
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
 
             
       - name: Test WASI perl with wasmtime
