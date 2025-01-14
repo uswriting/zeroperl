@@ -23,9 +23,6 @@ jobs:
           sudo cp binaryen-version_121/bin/* /opt/
           rm -rf binaryen.tar.gz binaryen-version_121
           echo "/opt" >> $GITHUB_PATH
-
-
-
       - name: Test Binaryen Installation
         run: wasm-opt --version
 
@@ -207,8 +204,8 @@ jobs:
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
-            ccflags='$ccflags -mllvm -wasm-enable-sjlj -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
-            cppflags='-lm -mllvm -wasm-enable-sjlj -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            ccflags='$ccflags -mllvm -wasm-enable-sjlj -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-unwind-tables -fno-exceptions -Wno-int-conversion -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -mllvm -wasm-enable-sjlj -DFAKE_BIT_BUCKET -DNO_LOCALE -Wno-implicit-function-declaration -DLIBCXX_ENABLE_EXCEPTIONS=OFF -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -Wno-int-conversion -fno-unwind-tables -fno-exceptions -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
       - name: Install Perl (WASI build)
         shell: bash
@@ -222,7 +219,6 @@ jobs:
           curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
           cp hintfile_wasi.sh wasm/hints/wasi.sh
           cd wasm
-
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
@@ -271,7 +267,7 @@ jobs:
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
             -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS \
-            -DNO_LOCALE \
+            -DFAKE_BIT_BUCKET -DNO_LOCALE \
             -Wno-null-pointer-arithmetic \
             -fno-unwind-tables -fno-exceptions \
             -Wno-int-conversion \
