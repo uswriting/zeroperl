@@ -2,7 +2,6 @@
 /* work round bug in MakeMaker which doesn't currently (2019) supply this
  * flag when making a statically linked perl */
 #define PERL_CORE 1
-#define FAKE_BIT_BUCKET
 #include <stdio.h>
 #include <locale.h>
 #include "EXTERN.h"
