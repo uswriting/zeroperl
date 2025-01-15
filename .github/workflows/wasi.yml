@@ -111,7 +111,7 @@ jobs:
             # (Another possible fix might be to fix the Makefile steps so that they use the -o option, but this solution works for now.)
             #TODO Later: In NODEFS, does Perl's -e test work correctly on symlinks? (./t/TEST was having issues detecting ./t/perl, a symlink to ./perl).
             usemymalloc="n"
-            uselargefiles="y"
+            uselargefiles='define'
             usenm='undef'
             usemallocwrap="define"
             d_procselfexe='undef'
