@@ -267,6 +267,7 @@ jobs:
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
             -D_GNU_SOURCE -D_POSIX_C_SOURCE -DNO_MATHOMS \
+            -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE \
             -Wno-null-pointer-arithmetic \
             -Wno-int-conversion \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
@@ -278,6 +279,7 @@ jobs:
           wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
+            -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
