@@ -111,7 +111,7 @@ jobs:
             # (Another possible fix might be to fix the Makefile steps so that they use the -o option, but this solution works for now.)
             #TODO Later: In NODEFS, does Perl's -e test work correctly on symlinks? (./t/TEST was having issues detecting ./t/perl, a symlink to ./perl).
             usemymalloc="n"
-            uselargefiles="n"
+            uselargefiles="y"
             usenm='undef'
             usemallocwrap="define"
             d_procselfexe='undef'
@@ -277,7 +277,6 @@ jobs:
             -lwasi-emulated-mman
           
           wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
-            -Wl,--initial-memory=134217728 -Wl,--max-memory=134217728 \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
