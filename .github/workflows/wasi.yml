@@ -278,6 +278,7 @@ jobs:
             -lwasi-emulated-mman
           
           wasic -o perlwasi -flto=full -static wasiperl.o stubs.o \
+            -Wl,--initial-memory=134217728 -Wl,--max-memory=134217728 \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -fno-exceptions -fno-unwind-tables \
