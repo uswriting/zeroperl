@@ -122,7 +122,7 @@ jobs:
             d_wait3='undef'
             d_wait4='undef'
             i_syswait='undef'    # This tells perl not to include sys/wait.h
-            d_dirnamlen='undef'
+      
             i_grp='define'
             i_pwd='define'
             d_getpwnam='undef'
@@ -167,6 +167,8 @@ jobs:
             d_lstat='define'
             d_statblks='define'
             d_fstat64='define'
+            d_fdclose='define'
+            d_dirnamlen='define'
             Off_t='off_t'
 
             lseeksize='8'
@@ -180,7 +182,7 @@ jobs:
             d_setproctitle='undef'
             d_malloc_size='undef'
             d_malloc_good_size='undef'
-            d_fdclose='undef'
+        
             #d_prctl='define' # hm, it's present in the libc source, but Configure shows Emscripten error output? -> for now, assume it's not available
             # It *looks* like shm*, sem* and a few others exist in Emscripten's libc,
             # but I'm not sure why Configure isn't detecting them. But at the moment I'm not going
