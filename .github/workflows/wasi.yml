@@ -154,7 +154,7 @@ jobs:
             uselargefiles='define'
             use64bitint='define'
             useperlio='define'
-            usequadmath='define'
+            usequadmath='undef'
             usethreads='undef'
             use64bitall='define'
 
