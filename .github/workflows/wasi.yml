@@ -171,7 +171,7 @@ jobs:
             d_dirnamlen='undef'
             Off_t='off64_t'
       
-            longsize='8'
+            longsize='4'
             longlongsize='8'
             ivtype='long long'
             lseeksize='8'
