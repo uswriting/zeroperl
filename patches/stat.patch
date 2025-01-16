@@ -1,5 +1,5 @@
 diff --git a/pp_sys.c b/pp_sys.c
-index 5f8bb0d6ed..569750977f 100644
+index 5f8bb0d6ed..ac7455211c 100644
 --- a/pp_sys.c
 +++ b/pp_sys.c
 @@ -650,8 +650,8 @@ PP_wrapped(pp_die, 0, 1)
@@ -111,13 +111,13 @@ index 5f8bb0d6ed..569750977f 100644
                          PL_laststatval = -1;
 -                        SETERRNO(EBADF,RMS_IFI);
 +                        SETERRNO(EBADF, RMS_IFI);
-                     }
--            } else {
++                    }
 +                    else
 +                    {
 +                        PL_laststatval = PerlLIO_fstat(fd, &PL_statcache);
 +                        PerlIO_printf(Perl_debug_log, "fstat result: %d\n", PL_laststatval);
-+                    }
+                     }
+-            } else {
 +                }
 +                else if (IoDIRP(io))
 +                {
@@ -272,7 +272,7 @@ index 5f8bb0d6ed..569750977f 100644
          }
  #endif
          {
-@@ -3208,87 +3265,119 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+@@ -3208,87 +3265,127 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
               */
              bool neg;
              Stat_t s;
@@ -373,6 +373,13 @@ index 5f8bb0d6ed..569750977f 100644
          PUSHs(newSVpvs_flags("", SVs_TEMP));
  #endif
 +
++#ifdef __wasi__
++        /* Force floating point for WASI large files */
++        PerlIO_printf(Perl_debug_log, "WASI: Using floating point for st_size\n");
++        PerlIO_printf(Perl_debug_log, "st_size value: %lld\n", (long long)PL_statcache.st_size);
++        mPUSHn(PL_statcache.st_size);
++#else
++        /* Original size handling logic */
  #if Off_t_size > IVSIZE
 +        PerlIO_printf(Perl_debug_log, "Using floating point for st_size (Off_t_size > IVSIZE)\n");
 +        PerlIO_printf(Perl_debug_log, "st_size value: %lld\n", (long long)PL_statcache.st_size);
@@ -382,6 +389,7 @@ index 5f8bb0d6ed..569750977f 100644
 +        PerlIO_printf(Perl_debug_log, "st_size value: %lld\n", (long long)PL_statcache.st_size);
          mPUSHi(PL_statcache.st_size);
  #endif
++#endif
 +
  #ifdef BIG_TIME
 +        PerlIO_printf(Perl_debug_log, "Using floating point for timestamps\n");
@@ -409,7 +417,24 @@ index 5f8bb0d6ed..569750977f 100644
      RETURN;
  }
  
-@@ -3774,7 +3863,7 @@ PP(pp_fttext)
+@@ -3524,10 +3621,16 @@ PP(pp_ftis)
+         dTARGET;
+         switch (op_type) {
+         case OP_FTSIZE:
++#ifdef __wasi__
++            /* Force floating point for WASI large files */
++            sv_setnv(TARG, (NV)PL_statcache.st_size);
++#else
++            /* Original size handling logic */
+ #if Off_t_size > IVSIZE
+             sv_setnv(TARG, (NV)PL_statcache.st_size);
+ #else
+             sv_setiv(TARG, (IV)PL_statcache.st_size);
++#endif
+ #endif
+             break;
+         case OP_FTMTIME:
+@@ -3774,7 +3877,7 @@ PP(pp_fttext)
          const char *file;
          const char *temp;
          STRLEN temp_len;
@@ -418,7 +443,7 @@ index 5f8bb0d6ed..569750977f 100644
  
          assert(sv);
          temp = SvPV_nomg_const(sv, temp_len);
-@@ -3954,7 +4043,7 @@ PP_wrapped(pp_chdir, MAXARG, 0)
+@@ -3954,7 +4057,7 @@ PP_wrapped(pp_chdir, MAXARG, 0)
          DIE(aTHX_ PL_no_func, "fchdir");
  #endif
      }
