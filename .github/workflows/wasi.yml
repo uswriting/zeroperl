@@ -168,7 +168,7 @@ jobs:
             d_statblks='define'
             d_fstat64='define'
             d_fdclose='define'
-            d_dirnamlen='define'
+            d_dirnamlen='undef'
             Off_t='off64_t'
       
 
