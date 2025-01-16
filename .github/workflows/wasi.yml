@@ -154,7 +154,7 @@ jobs:
             use64bitint='define'
             useperlio='define'
             usethreads='undef'
-            use64bitall='undef'
+            use64bitall='define'
 
             d_off64_t='define'
             use_off64_t='define'
@@ -170,14 +170,6 @@ jobs:
             d_fdclose='undef'
             d_dirnamlen='undef'
             Off_t='off64_t'
-      
-            longsize='4'
-            longlongsize='8'
-            ivtype='long long'
-            lseeksize='8'
-            lseektype='off64_t'
-            st_ino_size='8'
-            st_size_size='8'
 
 
             
