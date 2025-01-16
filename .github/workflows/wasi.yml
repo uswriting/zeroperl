@@ -3,7 +3,7 @@ name: perlwasi
 on: workflow_dispatch
 
 env:
-  URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
+  URLPERL: https://www.cpan.org/src/5.0/perl-5.41.7.tar.gz
   WASI_SDK_VERSION: 25.0
   # Adjust WASI_SDK_VERSION if you want a different version. For reference:
   # https://github.com/WebAssembly/wasi-sdk/releases
@@ -250,7 +250,7 @@ jobs:
           cp hintfile_wasi.sh wasm/hints/wasi.sh
           cd wasm
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
-          chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
+          #chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
