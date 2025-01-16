@@ -1,7 +1,61 @@
 diff --git a/pp_sys.c b/pp_sys.c
-index 5f8bb0d6ed..90ab46d651 100644
+index 5f8bb0d6ed..975e3a3877 100644
 --- a/pp_sys.c
 +++ b/pp_sys.c
+@@ -2271,7 +2271,7 @@ PP_wrapped(pp_syswrite, 0, 1)
+         if (MARK >= SP) {
+             length = blen;
+         } else {
+-#if Size_t_size > IVSIZE
++#if Size_t_size > IVSIZE || defined(__wasi__)
+             length = (Size_t)SvNVx(*++MARK);
+ #else
+             length = (Size_t)SvIVx(*++MARK);
+@@ -2313,7 +2313,7 @@ PP_wrapped(pp_syswrite, 0, 1)
+         goto say_undef;
+     SP = ORIGMARK;
+ 
+-#if Size_t_size > IVSIZE
++#if Size_t_size > IVSIZE || defined(__wasi__)
+     PUSHn(retval);
+ #else
+     PUSHi(retval);
+@@ -2418,7 +2418,7 @@ PP_wrapped(pp_tell, MAXARG, 0)
+         RETURN;
+     }
+ 
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+     PUSHn( (NV)do_tell(gv) );
+ #else
+     PUSHi( (IV)do_tell(gv) );
+@@ -2433,7 +2433,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+ {
+     dSP;
+     const int whence = POPi;
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+     const Off_t offset = (Off_t)SvNVx(POPs);
+ #else
+     const Off_t offset = (Off_t)SvIVx(POPs);
+@@ -2445,7 +2445,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+     if (io) {
+         const MAGIC * const mg = SvTIED_mg((const SV *)io, PERL_MAGIC_tiedscalar);
+         if (mg) {
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+             SV *const offset_sv = newSVnv((NV) offset);
+ #else
+             SV *const offset_sv = newSViv(offset);
+@@ -2464,7 +2464,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+             PUSHs(&PL_sv_undef);
+         else {
+             SV* const sv = sought ?
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+                 newSVnv((NV)sought)
+ #else
+                 newSViv(sought)
 @@ -2486,7 +2486,7 @@ PP_wrapped(pp_truncate, 2, 0)
      /* XXX Configure probe for the length type of *truncate() needed XXX */
      Off_t len;
