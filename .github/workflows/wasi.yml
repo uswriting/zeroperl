@@ -169,7 +169,7 @@ jobs:
             d_fstat64='define'
             d_fdclose='define'
             d_dirnamlen='define'
-            Off_t='off_t'
+            Off_t='off64_t'
 
             lseeksize='8'
             st_ino_size='8'
