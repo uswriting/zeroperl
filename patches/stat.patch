@@ -1,5 +1,5 @@
 diff --git a/pp_sys.c b/pp_sys.c
-index 5f8bb0d6ed..5ced32d4fb 100644
+index 5f8bb0d6ed..975e3a3877 100644
 --- a/pp_sys.c
 +++ b/pp_sys.c
 @@ -2271,7 +2271,7 @@ PP_wrapped(pp_syswrite, 0, 1)
@@ -65,56 +65,7 @@ index 5f8bb0d6ed..5ced32d4fb 100644
      len = (Off_t)POPn;
  #else
      len = (Off_t)POPi;
-@@ -3054,6 +3054,48 @@ PP_wrapped(pp_getpeername, 1, 0)
- 
- PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
- {
-+    PerlIO_printf(Perl_debug_log,
-+                  "=== File Size Configuration ===\n"
-+                  "#ifdef HAS_OFF64_T: %d\n"
-+                  "#ifdef USE_LARGE_FILES: %d\n"
-+                  "#ifdef NO_64_BIT_RAWIO: %d\n"
-+                  "#ifdef HAS_FSEEKO: %d\n"
-+                  "#ifdef USE_64_BIT_RAWIO: %d\n"
-+                  "FSEEKSIZE: %d\n"
-+                  "LSEEKSIZE: %d\n"
-+                  "Off_t_size: %d\n"
-+                  "IVSIZE: %d\n"
-+                  "Size_t_size: %d\n",
-+#ifdef HAS_OFF64_T
-+                  1,
-+#else
-+                  0,
-+#endif
-+#ifdef USE_LARGE_FILES
-+                  1,
-+#else
-+                  0,
-+#endif
-+#ifdef NO_64_BIT_RAWIO
-+                  1,
-+#else
-+                  0,
-+#endif
-+#ifdef HAS_FSEEKO
-+                  1,
-+#else
-+                  0,
-+#endif
-+#ifdef USE_64_BIT_RAWIO
-+                  1,
-+#else
-+                  0,
-+#endif
-+                  FSEEKSIZE,
-+                  LSEEKSIZE,
-+                  Off_t_size,
-+                  IVSIZE,
-+                  Size_t_size);
-     dSP;
-     GV *gv = NULL;
-     IO *io = NULL;
-@@ -3267,7 +3309,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+@@ -3267,7 +3267,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
  #else
          PUSHs(newSVpvs_flags("", SVs_TEMP));
  #endif
@@ -123,7 +74,7 @@ index 5f8bb0d6ed..5ced32d4fb 100644
          mPUSHn(PL_statcache.st_size);
  #else
          mPUSHi(PL_statcache.st_size);
-@@ -3524,7 +3566,7 @@ PP(pp_ftis)
+@@ -3524,7 +3524,7 @@ PP(pp_ftis)
          dTARGET;
          switch (op_type) {
          case OP_FTSIZE:
