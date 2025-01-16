@@ -150,6 +150,7 @@ jobs:
             d_getgid='undef'
             d_getegid='undef'
             d_statfs_s='define'
+            d_fstatfs='define'
             uselargefiles='define'
             use64bitint='define'
             useperlio='undef'
