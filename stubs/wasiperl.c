@@ -69,7 +69,6 @@ EXTERN_C void boot_SDBM_File (pTHX_ CV* cv);
 EXTERN_C void boot_Math__BigInt__FastCalc (pTHX_ CV* cv);
 EXTERN_C void boot_Data__Dumper (pTHX_ CV* cv);
 EXTERN_C void boot_I18N__Langinfo (pTHX_ CV* cv);
-EXTERN_C void boot_Time__HiRes (pTHX_ CV* cv);
 EXTERN_C void boot_Time__Piece (pTHX_ CV* cv);
 EXTERN_C void boot_IO (pTHX_ CV* cv);
 EXTERN_C void boot_Hash__Util__FieldHash (pTHX_ CV* cv);
@@ -123,7 +122,6 @@ static void xs_init(pTHX) {
     newXS("Math::BigInt::FastCalc::bootstrap", boot_Math__BigInt__FastCalc, file);
     newXS("Data::Dumper::bootstrap", boot_Data__Dumper, file);
     newXS("I18N::Langinfo::bootstrap", boot_I18N__Langinfo, file);
-    newXS("Time::HiRes::bootstrap", boot_Time__HiRes, file);
     newXS("Time::Piece::bootstrap", boot_Time__Piece, file);
     newXS("IO::bootstrap", boot_IO, file);
     newXS("Hash::Util::FieldHash::bootstrap", boot_Hash__Util__FieldHash, file);
