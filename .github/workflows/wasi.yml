@@ -155,7 +155,7 @@ jobs:
             use64bitint='define'
             useperlio='undef'
             usethreads='undef'
-            use64bitall='define'
+            use64bitall='undef'
 
             d_off64_t='define'
             use_off64_t='define'
