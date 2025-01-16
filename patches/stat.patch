@@ -1,0 +1,493 @@
+diff --git a/pp_sys.c b/pp_sys.c
+index 5f8bb0d6ed..2deff40db0 100644
+--- a/pp_sys.c
++++ b/pp_sys.c
+@@ -650,8 +650,8 @@ PP_wrapped(pp_die, 0, 1)
+  * look like this on entry:
+  *     -  X  A0 A1 A2 ...
+  *     |
+- *  mark 
+- * 
++ *  mark
++ *
+  * where X is an SV to be thrown away (it's typically the original
+  * filehandle), then the method is called (on a new stack) with args:
+  *   (tied_obj(sv), A0, A1, ...)
+@@ -3022,7 +3022,7 @@ PP_wrapped(pp_getpeername, 1, 0)
+             if (((struct sockaddr *)SvPVX_const(sv))->sa_family == AF_INET &&
+                 !memcmp(SvPVX_const(sv) + sizeof(u_short), nowhere,
+                         sizeof(u_short) + sizeof(struct in_addr))) {
+-                goto nuts2;	
++                goto nuts2;
+             }
+         }
+ #endif
+@@ -3059,229 +3059,352 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+     IO *io = NULL;
+     U8 gimme;
+     I32 max = 13;
+-    SV* sv;
++    SV *sv;
++
++    fprintf(stderr, "DEBUG: Entering pp_stat.\n");
++    fprintf(stderr, "DEBUG: OP type = %s, OP flags = 0x%x\n",
++            (PL_op->op_type == OP_STAT) ? "STAT" : ((PL_op->op_type == OP_LSTAT) ? "LSTAT" : "OTHER"),
++            (unsigned)PL_op->op_flags);
+ 
+-    if (PL_op->op_flags & OPf_REF ? (gv = cGVOP_gv, 1)
+-                                  : cBOOL((sv=POPs, gv = MAYBE_DEREF_GV(sv))))
++    /*
++     * This if-conditional checks whether we have a GV-based stat (filehandle)
++     * or an SV-based stat (filename).
++     */
++    if ((PL_op->op_flags & OPf_REF) ? (gv = cGVOP_gv, 1)
++                                    : cBOOL((sv = POPs, gv = MAYBE_DEREF_GV(sv))))
+     {
+-        if (PL_op->op_type == OP_LSTAT) {
+-            if (gv != PL_defgv) {
++
++        fprintf(stderr, "DEBUG: We have a gv from either &OPf_REF or from the SV.\n");
++        if (gv == PL_defgv)
++        {
++            fprintf(stderr, "DEBUG: The gv is the default glob (PL_defgv).\n");
++        }
++        else if (gv)
++        {
++            fprintf(stderr, "DEBUG: The gv is a specific filehandle.\n");
++        }
++
++        if (PL_op->op_type == OP_LSTAT)
++        {
++            fprintf(stderr, "DEBUG: We are handling an LSTAT.\n");
++            if (gv != PL_defgv)
++            {
+             do_fstat_warning_check:
++                fprintf(stderr, "DEBUG: Emitting lstat warning, since gv != PL_defgv.\n");
+                 Perl_ck_warner(aTHX_ packWARN(WARN_IO),
+                                "lstat() on filehandle%s%" SVf,
+-                                gv ? " " : "",
+-                                SVfARG(gv
+-                                        ? newSVhek_mortal(GvENAME_HEK(gv))
+-                                        : &PL_sv_no));
+-            } else if (PL_laststype != OP_LSTAT)
++                               gv ? " " : "",
++                               SVfARG(gv
++                                          ? newSVhek_mortal(GvENAME_HEK(gv))
++                                          : &PL_sv_no));
++            }
++            else if (PL_laststype != OP_LSTAT)
++            {
+                 /* diag_listed_as: The stat preceding %s wasn't an lstat */
++                fprintf(stderr, "DEBUG: croak - 'The stat preceding lstat() wasn't an lstat'\n");
+                 Perl_croak(aTHX_ "The stat preceding lstat() wasn't an lstat");
++            }
+         }
+ 
+-        if (gv == PL_defgv) {
++        if (gv == PL_defgv)
++        {
++            fprintf(stderr, "DEBUG: gv == PL_defgv; using previous PL_laststatval if any.\n");
+             if (PL_laststatval < 0)
+-                SETERRNO(EBADF,RMS_IFI);
+-        } else {
+-          do_fstat_have_io:
++            {
++                fprintf(stderr, "DEBUG: PL_laststatval < 0 -> Setting errno=EBADF.\n");
++                SETERRNO(EBADF, RMS_IFI);
++            }
++        }
++        else
++        {
++        do_fstat_have_io:
++            fprintf(stderr, "DEBUG: Doing fstat on an actual filehandle.\n");
+             PL_laststype = OP_STAT;
+             PL_statgv = gv ? gv : (GV *)io;
+             SvPVCLEAR(PL_statname);
+-            if(gv) {
++
++            if (gv)
++            {
+                 io = GvIO(gv);
+             }
+-            if (io) {
+-                    if (IoIFP(io)) {
+-                        int fd = PerlIO_fileno(IoIFP(io));
+-                        if (fd < 0) {
+-                            report_evil_fh(gv);
+-                            PL_laststatval = -1;
+-                            SETERRNO(EBADF,RMS_IFI);
+-                        } else {
+-                            PL_laststatval = PerlLIO_fstat(fd, &PL_statcache);
+-                        }
+-                    } else if (IoDIRP(io)) {
+-                        PL_laststatval =
+-                            PerlLIO_fstat(my_dirfd(IoDIRP(io)), &PL_statcache);
+-                    } else {
++
++            if (io)
++            {
++                if (IoIFP(io))
++                {
++                    int fd = PerlIO_fileno(IoIFP(io));
++                    fprintf(stderr, "DEBUG: We have an IoIFP. fd = %d\n", fd);
++
++                    if (fd < 0)
++                    {
++                        fprintf(stderr, "DEBUG: Invalid fd < 0 => EBADF.\n");
+                         report_evil_fh(gv);
+                         PL_laststatval = -1;
+-                        SETERRNO(EBADF,RMS_IFI);
++                        SETERRNO(EBADF, RMS_IFI);
++                    }
++                    else
++                    {
++                        fprintf(stderr, "DEBUG: Calling PerlLIO_fstat() on fd.\n");
++                        PL_laststatval = PerlLIO_fstat(fd, &PL_statcache);
+                     }
+-            } else {
++                }
++                else if (IoDIRP(io))
++                {
++                    fprintf(stderr, "DEBUG: We have a DIR pointer => calling fstat on dir fd.\n");
++                    PL_laststatval =
++                        PerlLIO_fstat(my_dirfd(IoDIRP(io)), &PL_statcache);
++                }
++                else
++                {
++                    fprintf(stderr, "DEBUG: Evil filehandle? Setting PL_laststatval=-1.\n");
++                    report_evil_fh(gv);
++                    PL_laststatval = -1;
++                    SETERRNO(EBADF, RMS_IFI);
++                }
++            }
++            else
++            {
++                fprintf(stderr, "DEBUG: No IO? => EBADF.\n");
+                 report_evil_fh(gv);
+                 PL_laststatval = -1;
+-                SETERRNO(EBADF,RMS_IFI);
++                SETERRNO(EBADF, RMS_IFI);
+             }
+         }
+ 
+-        if (PL_laststatval < 0) {
++        if (PL_laststatval < 0)
++        {
++            fprintf(stderr, "DEBUG: stat call failed => max=0.\n");
+             max = 0;
+         }
+     }
+-    else {
++    else
++    {
++        fprintf(stderr, "DEBUG: Not a gv => we will do the path-based stat.\n");
+         const char *file;
+         const char *temp;
+         STRLEN len;
+-        if (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVIO) { 
++
++        if (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVIO)
++        {
++            fprintf(stderr, "DEBUG: The SV is a reference to a PVIO => treat like a filehandle.\n");
+             io = MUTABLE_IO(SvRV(sv));
+             if (PL_op->op_type == OP_LSTAT)
+                 goto do_fstat_warning_check;
+-            goto do_fstat_have_io; 
++            goto do_fstat_have_io;
+         }
++
+         SvTAINTED_off(PL_statname); /* previous tainting irrelevant */
+         temp = SvPV_nomg_const(sv, len);
+         sv_setpv(PL_statname, temp);
+         PL_statgv = NULL;
+         PL_laststype = PL_op->op_type;
+         file = SvPV_nolen_const(PL_statname);
+-        if (!IS_SAFE_PATHNAME(temp, len, OP_NAME(PL_op))) {
++
++        if (!IS_SAFE_PATHNAME(temp, len, OP_NAME(PL_op)))
++        {
++            fprintf(stderr, "DEBUG: Not a safe pathname => PL_laststatval = -1.\n");
+             PL_laststatval = -1;
+         }
+         else if (PL_op->op_type == OP_LSTAT)
++        {
++            fprintf(stderr, "DEBUG: calling PerlLIO_lstat on %s\n", file);
+             PL_laststatval = PerlLIO_lstat(file, &PL_statcache);
++        }
+         else
++        {
++            fprintf(stderr, "DEBUG: calling PerlLIO_stat on %s\n", file);
+             PL_laststatval = PerlLIO_stat(file, &PL_statcache);
+-        if (PL_laststatval < 0) {
+-            if (ckWARN(WARN_NEWLINE) && should_warn_nl(file)) {
+-                /* PL_warn_nl is constant */
+-                GCC_DIAG_IGNORE_STMT(-Wformat-nonliteral);
++        }
++
++        if (PL_laststatval < 0)
++        {
++            if (ckWARN(WARN_NEWLINE) && should_warn_nl(file))
++            {
++                fprintf(stderr, "DEBUG: Newline warning triggered on %s\n", file);
++                GCC_DIAG_IGNORE_STMT(-Wformat - nonliteral);
+                 Perl_warner(aTHX_ packWARN(WARN_NEWLINE), PL_warn_nl, "stat");
+                 GCC_DIAG_RESTORE_STMT;
+             }
++            fprintf(stderr, "DEBUG: stat call returned -1 => max=0.\n");
+             max = 0;
+         }
+     }
+ 
+     gimme = GIMME_V;
+-    if (gimme != G_LIST) {
++    fprintf(stderr, "DEBUG: gimme = %d\n", (int)gimme);
++
++    if (gimme != G_LIST)
++    {
+         if (gimme != G_VOID)
++        {
+             XPUSHs(boolSV(max));
++        }
++        fprintf(stderr, "DEBUG: In scalar/void context => returning boolean or void.\n");
+         RETURN;
+     }
+-    if (max) {
++
++    if (max)
++    {
++        fprintf(stderr, "DEBUG: Extended array return => pushing up to %d elements from stat.\n", (int)max);
+         EXTEND(SP, max);
+         EXTEND_MORTAL(max);
++
++        /*
++         * st_dev
++         */
+ #if ST_DEV_SIZE < IVSIZE || (ST_DEV_SIZE == IVSIZE && ST_DEV_SIGN < 0)
++        fprintf(stderr, "DEBUG: st_dev fits in IV => mPUSHi.\n");
+         mPUSHi(PL_statcache.st_dev);
+ #elif ST_DEV_SIZE == IVSIZE
++        fprintf(stderr, "DEBUG: st_dev fits in UV => mPUSHu.\n");
+         mPUSHu(PL_statcache.st_dev);
+ #else
+-#  if ST_DEV_SIGN < 0
+-        if (LIKELY((IV)PL_statcache.st_dev == PL_statcache.st_dev)) {
++#if ST_DEV_SIGN < 0
++        if (LIKELY((IV)PL_statcache.st_dev == PL_statcache.st_dev))
++        {
++            fprintf(stderr, "DEBUG: st_dev fits signed IV => mPUSHi.\n");
+             mPUSHi((IV)PL_statcache.st_dev);
+         }
+-#  else
+-        if (LIKELY((UV)PL_statcache.st_dev == PL_statcache.st_dev)) {
++#else
++        if (LIKELY((UV)PL_statcache.st_dev == PL_statcache.st_dev))
++        {
++            fprintf(stderr, "DEBUG: st_dev fits unsigned UV => mPUSHu.\n");
+             mPUSHu((UV)PL_statcache.st_dev);
+         }
+-#  endif
+-        else {
+-            char buf[sizeof(PL_statcache.st_dev)*3+1];
+-            /* sv_catpvf() casts 'j' size values down to IV, so it
+-               isn't suitable for use here.
+-            */
+-#    if defined(I_INTTYPES) && defined(HAS_SNPRINTF)
+-#      if ST_DEV_SIGN < 0
++#endif
++        else
++        {
++            char buf[sizeof(PL_statcache.st_dev) * 3 + 1];
++            fprintf(stderr, "DEBUG: st_dev too large => converting to string.\n");
++#if defined(I_INTTYPES) && defined(HAS_SNPRINTF)
++#if ST_DEV_SIGN < 0
+             int size = snprintf(buf, sizeof(buf), "%" PRIdMAX, (intmax_t)PL_statcache.st_dev);
+-#      else
++#else
+             int size = snprintf(buf, sizeof(buf), "%" PRIuMAX, (uintmax_t)PL_statcache.st_dev);
+-#      endif
++#endif
+             STATIC_ASSERT_STMT(sizeof(intmax_t) >= sizeof(PL_statcache.st_dev));
+             mPUSHp(buf, size);
+-#    else
+-#      error extraordinarily large st_dev but no inttypes.h or no snprintf
+-#    endif
++#else
++#error extraordinarily large st_dev but no inttypes.h or no snprintf
++#endif
+         }
+ #endif
++
++        /*
++         * st_ino
++         */
+         {
+-            /*
+-             * We try to represent st_ino as a native IV or UV where
+-             * possible, but fall back to a decimal string where
+-             * necessary.  The code to generate these decimal strings
+-             * is quite obtuse, because (a) we're portable to non-POSIX
+-             * platforms where st_ino might be signed; (b) we didn't
+-             * necessarily detect at Configure time whether st_ino is
+-             * signed; (c) we're portable to non-POSIX platforms where
+-             * ino_t isn't defined, so have no name for the type of
+-             * st_ino; and (d) sprintf() doesn't necessarily support
+-             * integers as large as st_ino.
+-             */
+             bool neg;
+             Stat_t s;
+-            CLANG_DIAG_IGNORE_STMT(-Wtautological-compare);
+-            GCC_DIAG_IGNORE_STMT(-Wtype-limits);
+-#if defined(__HP_cc) || defined(__HP_aCC)
+-#pragma diag_suppress 2186
+-#endif
+-            neg = PL_statcache.st_ino < 0;
+-#if defined(__HP_cc) || defined(__HP_aCC)
+-#pragma diag_default 2186
+-#endif
+-            GCC_DIAG_RESTORE_STMT;
+-            CLANG_DIAG_RESTORE_STMT;
+-            if (neg) {
++            neg = (PL_statcache.st_ino < 0);
++
++            fprintf(stderr, "DEBUG: st_ino = %lld (raw)\n",
++                    (long long)PL_statcache.st_ino);
++            if (neg)
++            {
++                fprintf(stderr, "DEBUG: st_ino is negative => handle as signed.\n");
+                 s.st_ino = (IV)PL_statcache.st_ino;
+-                if (LIKELY(s.st_ino == PL_statcache.st_ino)) {
++                if (LIKELY(s.st_ino == PL_statcache.st_ino))
++                {
++                    fprintf(stderr, "DEBUG: st_ino fits in IV => mPUSHi.\n");
+                     mPUSHi(s.st_ino);
+-                } else {
+-                    char buf[sizeof(s.st_ino)*3+1], *p;
++                }
++                else
++                {
++                    fprintf(stderr, "DEBUG: st_ino too big => manual decimal conversion.\n");
++                    char buf[sizeof(s.st_ino) * 3 + 1], *p;
+                     s.st_ino = PL_statcache.st_ino;
+-                    for (p = buf + sizeof(buf); p != buf+1; ) {
++                    for (p = buf + sizeof(buf); p != buf + 1;)
++                    {
+                         Stat_t t;
+                         t.st_ino = s.st_ino / 10;
+-                        *--p = '0' + (int)(t.st_ino*10 - s.st_ino);
++                        *--p = '0' + (int)(t.st_ino * 10 - s.st_ino);
+                         s.st_ino = t.st_ino;
+                     }
+                     while (*p == '0')
+                         p++;
+                     *--p = '-';
+-                    mPUSHp(p, buf+sizeof(buf) - p);
++                    mPUSHp(p, buf + sizeof(buf) - p);
+                 }
+-            } else {
++            }
++            else
++            {
+                 s.st_ino = (UV)PL_statcache.st_ino;
+-                if (LIKELY(s.st_ino == PL_statcache.st_ino)) {
++                if (LIKELY(s.st_ino == PL_statcache.st_ino))
++                {
++                    fprintf(stderr, "DEBUG: st_ino fits in UV => mPUSHu.\n");
+                     mPUSHu(s.st_ino);
+-                } else {
+-                    char buf[sizeof(s.st_ino)*3], *p;
++                }
++                else
++                {
++                    fprintf(stderr, "DEBUG: st_ino too large => manual decimal conversion.\n");
++                    char buf[sizeof(s.st_ino) * 3], *p;
+                     s.st_ino = PL_statcache.st_ino;
+-                    for (p = buf + sizeof(buf); p != buf; ) {
++                    for (p = buf + sizeof(buf); p != buf;)
++                    {
+                         Stat_t t;
+                         t.st_ino = s.st_ino / 10;
+-                        *--p = '0' + (int)(s.st_ino - t.st_ino*10);
++                        *--p = '0' + (int)(s.st_ino - t.st_ino * 10);
+                         s.st_ino = t.st_ino;
+                     }
+                     while (*p == '0')
+                         p++;
+-                    mPUSHp(p, buf+sizeof(buf) - p);
++                    mPUSHp(p, buf + sizeof(buf) - p);
+                 }
+             }
+         }
++
++        /*
++         * st_mode, st_nlink
++         */
++        fprintf(stderr, "DEBUG: pushing st_mode=%u, st_nlink=%u.\n",
++                (unsigned)PL_statcache.st_mode, (unsigned)PL_statcache.st_nlink);
+         mPUSHu(PL_statcache.st_mode);
+         mPUSHu(PL_statcache.st_nlink);
+-        
++
++        /*
++         * st_uid, st_gid
++         */
++        fprintf(stderr, "DEBUG: pushing st_uid=%u, st_gid=%u.\n",
++                (unsigned)PL_statcache.st_uid, (unsigned)PL_statcache.st_gid);
+         sv_setuid(PUSHmortal, PL_statcache.st_uid);
+         sv_setgid(PUSHmortal, PL_statcache.st_gid);
+ 
+ #ifdef USE_STAT_RDEV
++        fprintf(stderr, "DEBUG: USE_STAT_RDEV => pushing st_rdev=%d.\n",
++                (int)PL_statcache.st_rdev);
+         mPUSHi(PL_statcache.st_rdev);
+ #else
+         PUSHs(newSVpvs_flags("", SVs_TEMP));
+ #endif
++
++        /*
++         * st_size
++         */
+ #if Off_t_size > IVSIZE
++        fprintf(stderr, "DEBUG: Off_t_size > IVSIZE => pushing st_size as NV via mPUSHn.\n");
++        fprintf(stderr, "DEBUG: st_size = %lld (raw)\n", (long long)PL_statcache.st_size);
+         mPUSHn(PL_statcache.st_size);
+ #else
++        fprintf(stderr, "DEBUG: st_size fits in IV => mPUSHi.\n");
++        fprintf(stderr, "DEBUG: st_size = %lld (raw)\n", (long long)PL_statcache.st_size);
+         mPUSHi(PL_statcache.st_size);
+ #endif
++
+ #ifdef BIG_TIME
++        fprintf(stderr, "DEBUG: BIG_TIME is defined => pushing times as NV.\n");
+         mPUSHn(PL_statcache.st_atime);
+         mPUSHn(PL_statcache.st_mtime);
+         mPUSHn(PL_statcache.st_ctime);
+ #else
++        fprintf(stderr, "DEBUG: Not BIG_TIME => pushing times as IV.\n");
+         mPUSHi(PL_statcache.st_atime);
+         mPUSHi(PL_statcache.st_mtime);
+         mPUSHi(PL_statcache.st_ctime);
+ #endif
++
+ #ifdef USE_STAT_BLOCKS
++        fprintf(stderr, "DEBUG: USE_STAT_BLOCKS => pushing st_blksize, st_blocks.\n");
+         mPUSHu(PL_statcache.st_blksize);
+         mPUSHu(PL_statcache.st_blocks);
+ #else
+@@ -3774,7 +3897,7 @@ PP(pp_fttext)
+         const char *file;
+         const char *temp;
+         STRLEN temp_len;
+-        int fd; 
++        int fd;
+ 
+         assert(sv);
+         temp = SvPV_nomg_const(sv, temp_len);
+@@ -3954,7 +4077,7 @@ PP_wrapped(pp_chdir, MAXARG, 0)
+         DIE(aTHX_ PL_no_func, "fchdir");
+ #endif
+     }
+-    else 
++    else
+         PUSHs(boolSV( PerlDir_chdir(tmps) >= 0 ));
+ #ifdef VMS
+     /* Clear the DEFAULT element of ENV so we'll get the new value
