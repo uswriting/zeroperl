@@ -152,6 +152,7 @@ jobs:
             d_statfs_s='define'
             uselargefiles='y'
             use64bitint='y'
+            useperlio='n'
             
             d_setrgid='undef'
             d_setruid='undef'
