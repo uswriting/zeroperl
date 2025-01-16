@@ -308,6 +308,7 @@ jobs:
           
           wasic -o perlwasi -flto=full -O3 -static wasiperl.o stubs.o \
             -Wl,--initial-memory=134217728 \
+            -Wl,-z,stack-size=5242880 \
             -Wl,--strip-all \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
