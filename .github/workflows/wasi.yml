@@ -159,10 +159,6 @@ jobs:
 
             d_off64_t='define'
             use_off64_t='define'
-            d_statfs_s='define'
-            d_fstatfs='define'
-            d_statfs_s='define'
-            d_fstatfs='define'
             d_stat='define'
             d_fstat='define'
             d_lstat='define'
@@ -171,8 +167,6 @@ jobs:
             d_fdclose='undef'
             d_dirnamlen='undef'
             d_readdir64_r='define'
-            d_statfs64='define'
-            d_fstatfs64='define'
 
             quadtype='long long'
             uquadtype='unsigned long long'
