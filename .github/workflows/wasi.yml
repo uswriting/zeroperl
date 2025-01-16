@@ -162,7 +162,7 @@ jobs:
             d_stat='define'
             d_fstat='define'
             d_lstat='define'
-            d_statblks='define'
+            d_statblks='undef'
             d_fstat64='define'
             d_fdclose='undef'
             d_dirnamlen='undef'
