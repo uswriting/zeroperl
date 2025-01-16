@@ -236,8 +236,8 @@ jobs:
             # The WASI sysroot is typically set in the environment or through clang flags.
             # The WASI sysroot is typically set in the environment or through clang flags.
             ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
-            ccflags='$ccflags -DMULTIPLICITY -DUSE_PERLIO -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -DNO_MATHOMS -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
-            cppflags='-lm -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_LARGEFILE64_SOURCE -D_GNU_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            ccflags='$ccflags -DMULTIPLICITY -DUSE_PERLIO -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_LARGEFILE64_SOURCE -D_GNU_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
       - name: Install Perl (WASI build)
         shell: bash
@@ -298,7 +298,7 @@ jobs:
             -lsetjmp \
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
-            -D_GNU_SOURCE -DNO_MATHOMS \
+            -D_GNU_SOURCE \
             -Wno-null-pointer-arithmetic \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
@@ -361,7 +361,7 @@ jobs:
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
             -lsetjmp \
-            -D_GNU_SOURCE -DNO_MATHOMS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 \
+            -D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 \
             -v -ferror-limit=0
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
