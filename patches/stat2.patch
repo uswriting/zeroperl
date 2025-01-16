@@ -1,70 +1,7 @@
 diff --git a/pp_sys.c b/pp_sys.c
-index 5f8bb0d6ed..6dfb479e04 100644
+index 5f8bb0d6ed..de39e8d665 100644
 --- a/pp_sys.c
 +++ b/pp_sys.c
-@@ -2274,7 +2274,7 @@ PP_wrapped(pp_syswrite, 0, 1)
- #if Size_t_size > IVSIZE
-             length = (Size_t)SvNVx(*++MARK);
- #else
--            length = (Size_t)SvIVx(*++MARK);
-+            length = (Size_t)SvUVx(*++MARK);
- #endif
-             if ((SSize_t)length < 0) {
-                 DIE(aTHX_ "Negative length");
-@@ -2316,7 +2316,7 @@ PP_wrapped(pp_syswrite, 0, 1)
- #if Size_t_size > IVSIZE
-     PUSHn(retval);
- #else
--    PUSHi(retval);
-+    PUSHu(retval);
- #endif
-     RETURN;
- 
-@@ -2421,7 +2421,7 @@ PP_wrapped(pp_tell, MAXARG, 0)
- #if LSEEKSIZE > IVSIZE
-     PUSHn( (NV)do_tell(gv) );
- #else
--    PUSHi( (IV)do_tell(gv) );
-+    PUSHu( (UV)do_tell(gv) );
- #endif
-     RETURN;
- }
-@@ -2436,7 +2436,7 @@ PP_wrapped(pp_sysseek, 3, 0)
- #if LSEEKSIZE > IVSIZE
-     const Off_t offset = (Off_t)SvNVx(POPs);
- #else
--    const Off_t offset = (Off_t)SvIVx(POPs);
-+    const Off_t offset = (Off_t)SvUVx(POPs);
- #endif
- 
-     GV * const gv = PL_last_in_gv = MUTABLE_GV(POPs);
-@@ -2448,7 +2448,7 @@ PP_wrapped(pp_sysseek, 3, 0)
- #if LSEEKSIZE > IVSIZE
-             SV *const offset_sv = newSVnv((NV) offset);
- #else
--            SV *const offset_sv = newSViv(offset);
-+            SV *const offset_sv = newSVuv(offset);
- #endif
- 
-             return tied_method2(SV_CONST(SEEK), SP, MUTABLE_SV(io), mg, offset_sv,
-@@ -2467,7 +2467,7 @@ PP_wrapped(pp_sysseek, 3, 0)
- #if LSEEKSIZE > IVSIZE
-                 newSVnv((NV)sought)
- #else
--                newSViv(sought)
-+                newSVuv(sought)
- #endif
-                 : newSVpvn(zero_but_true, ZBTLEN);
-             mPUSHs(sv);
-@@ -2489,7 +2489,7 @@ PP_wrapped(pp_truncate, 2, 0)
- #if Off_t_size > IVSIZE
-     len = (Off_t)POPn;
- #else
--    len = (Off_t)POPi;
-+    len = (Off_t)POPu;
- #endif
-     /* Checking for length < 0 is problematic as the type might or
-      * might not be signed: if it is not, clever compilers will moan. */
 @@ -3270,7 +3270,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
  #if Off_t_size > IVSIZE
          mPUSHn(PL_statcache.st_size);
@@ -74,12 +11,3 @@ index 5f8bb0d6ed..6dfb479e04 100644
  #endif
  #ifdef BIG_TIME
          mPUSHn(PL_statcache.st_atime);
-@@ -3527,7 +3527,7 @@ PP(pp_ftis)
- #if Off_t_size > IVSIZE
-             sv_setnv(TARG, (NV)PL_statcache.st_size);
- #else
--            sv_setiv(TARG, (IV)PL_statcache.st_size);
-+            sv_setiv(TARG, (UV)PL_statcache.st_size);
- #endif
-             break;
-         case OP_FTMTIME:
