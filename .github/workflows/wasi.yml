@@ -149,6 +149,7 @@ jobs:
             d_geteuid='undef'
             d_getgid='undef'
             d_getegid='undef'
+            d_statfs_s='define'
             
             d_setrgid='undef'
             d_setruid='undef'
