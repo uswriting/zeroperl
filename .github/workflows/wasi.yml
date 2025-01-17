@@ -169,8 +169,6 @@ jobs:
             d_dirnamlen='undef'
             d_readdir64_r='define'
 
-            sizesize='8'
-
             quadtype='long long'
             uquadtype='unsigned long long'
             quadkind='3'
