@@ -315,10 +315,7 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
-
-
-
+          $PWD/native/prefix/bin/perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
 
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
@@ -337,12 +334,13 @@ jobs:
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
             -I${{ github.workspace }}/stubs \
+            I${{ github.workspace }}/gen \
             -I. \
             -lwasi-emulated-mman
 
           cat wasm/perlpack.h.txt
           
-          wasic -o perlwasi -flto=full -O3 -static wasiperl.o wasi_vfs.o stubs.o libperl.a $(cat ${{ github.workspace }}/gen/perlpack.h.txt) \
+          wasic -o perlwasi -flto=full -O3 -static wasiperl.o stubs.o libperl.a $(cat ${{ github.workspace }}/gen/perlpack.h.txt) \
             -Wl,--strip-all \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
@@ -408,7 +406,7 @@ jobs:
             -D_GNU_SOURCE -D_POSIX_C_SOURCE \
             -v -ferror-limit=0
 
-           wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
+           wasm-opt perlwasi --translate-to-exnref -all -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
@@ -421,5 +419,5 @@ jobs:
         with:
           path: |
             wasm/config.h
-            wasm/perl.wasm
+            wasm/zeroperl.wasm
             wasm/perlwasi
