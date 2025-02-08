@@ -403,7 +403,7 @@ jobs:
 
            echo "TODO: further cleanup"
 
-           wasi-vfs pack perl.wasm --mapdir /prefix=./prefix -o zeroperl.wasm
+           wasi-vfs pack perl.wasm --mapdir /prefix::./prefix -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
