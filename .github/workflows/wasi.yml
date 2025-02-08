@@ -84,13 +84,6 @@ jobs:
           clang --version || true
           /opt/wasi-sdk/bin/clang --version || true
 
-      - name: Install WASI VFS CLI
-        run: |
-          export WASI_VFS_VERSION=0.5.4
-          curl -LO "https://github.com/kateinoigakukun/wasi-vfs/releases/download/v${WASI_VFS_VERSION}/wasi-vfs-cli-x86_64-unknown-linux-gnu.zip"
-          unzip wasi-vfs-cli-x86_64-unknown-linux-gnu.zip
-          sudo mv wasi-vfs /usr/local/bin/wasi-vfs
-
       - name: Install Perl (native, static)
         shell: bash
         run: |
@@ -312,7 +305,25 @@ jobs:
           #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
           #find ./prefix
 
+
+          rm -rf ./prefix/bin
+          find ./prefix -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
+          cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ ./prefix/lib/5.40.0/wasm32-wasi/File/
+          mkdir -p ./prefix/lib/5.40.0/wasm32-wasi/Image
+          cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ ./prefix/lib/5.40.0/wasm32-wasi/Image/
+          echo "TODO: further cleanup"
+
+          mkdir  ${{ github.workspace }}/gen
+
+          perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
+
+
+
+
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
+
+          wasic -c ${{ github.workspace }}/stubs/wasi_vfs.c -o wasi_vfs.o -I${{ github.workspace }}/gen
+
 
           cp ${{ github.workspace }}/stubs/wasiperl.c . && wasic -c wasiperl.c -o wasiperl.o -I. \
             -mllvm -wasm-enable-sjlj \
@@ -328,11 +339,20 @@ jobs:
             -I${{ github.workspace }}/stubs \
             -I. \
             -lwasi-emulated-mman
+
+          cat wasm/perlpack.h.txt
           
-          wasic -o perlwasi -flto=full -O3 -static wasiperl.o stubs.o \
+          wasic -o perlwasi -flto=full -O3 -static wasiperl.o wasi_vfs.o stubs.o libperl.a $(cat ${{ github.workspace }}/gen/perlpack.h.txt) \
             -Wl,--strip-all \
             -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
+            -Wl,--wrap=fopen \
+            -Wl,--wrap=open \
+            -Wl,--wrap=close \
+            -Wl,--wrap=read \
+            -Wl,--wrap=lseek \
+            -Wl,--wrap=stat \
+            -Wl,--wrap=fstat \
             lib/auto/mro/mro.a \
             lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
@@ -390,25 +410,6 @@ jobs:
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
 
-           # first pass
-           find ./prefix -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
-
-           cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ ./prefix/lib/5.40.0/wasm32-wasi/File/
-           mkdir -p ./prefix/lib/5.40.0/wasm32-wasi/Image
-           cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ ./prefix/lib/5.40.0/wasm32-wasi/Image/
-
-           rm -rf ./prefix/bin
-           # second pass
-           find ./prefix -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" \) -delete
-
-           echo "TODO: further cleanup"
-
-           wasi-vfs pack perlwasi --dir ./prefix::/prefix -o perl.wasm
-
-           wasm-opt perl.wasm --translate-to-exnref -all -o zeroperl.wasm
-
-
-
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
         with:
@@ -421,5 +422,4 @@ jobs:
           path: |
             wasm/config.h
             wasm/perl.wasm
-            wasm/zeroperl.wasm
             wasm/perlwasi
