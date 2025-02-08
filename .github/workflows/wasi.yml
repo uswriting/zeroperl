@@ -319,9 +319,6 @@ jobs:
 
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
-          wasic -c ${{ github.workspace }}/stubs/wasi_vfs.c -o wasi_vfs.o -I${{ github.workspace }}/gen
-
-
           cp ${{ github.workspace }}/stubs/wasiperl.c . && wasic -c wasiperl.c -o wasiperl.o -I. \
             -mllvm -wasm-enable-sjlj \
             -lsetjmp \
