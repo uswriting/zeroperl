@@ -382,10 +382,9 @@ jobs:
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
 
-           tree ./prefix/
-
-           cp -rv ../native/prefix/lib/site_perl/5.40.0/Image ./prefix/lib/site_perl/5.40.0/wasm32-wasi/
-           cp -rv ../native/prefix/lib/site_perl/5.40.0/File ./prefix/lib/site_perl/5.40.0/wasm32-wasi/
+           cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ ./prefix/lib/5.40.0/wasm32-wasi/File/
+           mkdir -p ./prefix/lib/5.40.0/wasm32-wasi/Image
+           cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ ./prefix/lib/5.40.0/wasm32-wasi/Image/
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
