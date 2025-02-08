@@ -315,7 +315,7 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          $PWD/../native/prefix/bin/perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
+          ../native/prefix/bin/perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
 
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
