@@ -3,7 +3,7 @@ name: perlwasi
 on: workflow_dispatch
 
 env:
-  URLPERL: https://www.cpan.org/src/5.0/perl-5.41.7.tar.gz
+  URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
   WASI_SDK_VERSION: 25.0
   # Adjust WASI_SDK_VERSION if you want a different version. For reference:
   # https://github.com/WebAssembly/wasi-sdk/releases
@@ -90,6 +90,7 @@ jobs:
           perl Makefile.PL
           make
           make test
+          ls "$PWD/../native/prefix"
           make install PREFIX="$PWD/../native/prefix"
       - name: Create WASI hint file
         shell: bash
@@ -365,8 +366,10 @@ jobs:
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
 
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.41.7/Image ./prefix/lib/perl5/5.41.7/wasm32-wasi/
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.41.7/File ./prefix/lib/perl5/5.41.7/wasm32-wasi/
+           tree ../native/prefix/
+
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
+           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
 
             
       - name: Test WASI perl with wasmtime
