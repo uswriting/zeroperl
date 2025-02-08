@@ -368,8 +368,8 @@ jobs:
 
            tree ../native/prefix/
 
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
-           cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
+           cp -rv ../native/prefix/lib/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
+           cp -rv ../native/prefix/lib/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
