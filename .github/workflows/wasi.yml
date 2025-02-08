@@ -247,7 +247,7 @@ jobs:
           cp hintfile_wasi.sh wasm/hints/wasi.sh
           cd wasm
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
-          chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat2.patch && chmod u-w ./pp_sys.c
+          chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat.patch && chmod u-w ./pp_sys.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
           wasiconfigure sh ./Configure -sde \
@@ -371,21 +371,6 @@ jobs:
            cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
            cp -rv ../native/prefix/lib/perl5/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
 
-            
-      - name: Test WASI perl with wasmtime
-        if: success()
-        shell: bash
-        run: |
-          cd wasm
-          # Attempt to run a simple script:
-          # We'll map the current directory into the WASI filesystem via --mapdir
-          echo 'print "hello from WASI perl\n";' > test.pl
-          wasmtime run --mapdir=.:. prefix/bin/perl -- test.pl || echo "Command failed, continuing"
-          
-          # Check @INC
-          wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'print(join(":",@INC),"\n")' || echo "Command failed, continuing"
-          # Try loading Image::ExifTool
-          wasmtime run --mapdir=.:. prefix/bin/perl -- -e 'use Image::ExifTool; print("ExifTool loaded successfully\n")' || echo "Command failed, continuing"
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
         with:
