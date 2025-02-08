@@ -1,8 +1,8 @@
 diff --git a/pp_sys.c b/pp_sys.c
-index 5f8bb0d6ed..ad8e46e692 100644
+index ed0ec79a73..bb91b40cee 100644
 --- a/pp_sys.c
 +++ b/pp_sys.c
-@@ -3270,7 +3270,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+@@ -3281,7 +3281,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
  #if Off_t_size > IVSIZE
          mPUSHn(PL_statcache.st_size);
  #else
@@ -11,7 +11,7 @@ index 5f8bb0d6ed..ad8e46e692 100644
  #endif
  #ifdef BIG_TIME
          mPUSHn(PL_statcache.st_atime);
-@@ -3527,7 +3527,7 @@ PP(pp_ftis)
+@@ -3538,7 +3538,7 @@ PP(pp_ftis)
  #if Off_t_size > IVSIZE
              sv_setnv(TARG, (NV)PL_statcache.st_size);
  #else
