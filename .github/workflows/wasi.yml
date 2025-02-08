@@ -16,6 +16,22 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+
+      - name: Nuke default GitHub Actions Perl
+        run: |
+          echo "Default system perl is at: $(which perl)"
+          sudo rm -f "$(which perl)" || true
+          # Remove any GitHub toolcache-based Perl (if it exists)
+          if [ -d /opt/hostedtoolcache/Perl ]; then
+            sudo rm -rf /opt/hostedtoolcache/Perl
+          fi
+          echo "Perl removed. Checking perl availability..."
+          if command -v perl >/dev/null 2>&1; then
+            echo "Uh oh, there's still a perl at $(which perl)."
+          else
+            echo "No perl found."
+          fi
+
       - name: Install Binaryen
         run: |
           curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
@@ -366,7 +382,7 @@ jobs:
 
            wasm-opt perlwasi --translate-to-exnref -all -o perl.wasm
 
-           tree ../native/prefix/
+           tree ./prefix/
 
            cp -rv ../native/prefix/lib/site_perl/5.40.0/Image ./prefix/lib/perl5/5.40.0/wasm32-wasi/
            cp -rv ../native/prefix/lib/site_perl/5.40.0/File ./prefix/lib/perl5/5.40.0/wasm32-wasi/
