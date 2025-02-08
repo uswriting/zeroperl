@@ -248,7 +248,7 @@ jobs:
           cd wasm
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
           chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat.patch && chmod u-w ./pp_sys.c
-          #chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
+          chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
