@@ -320,7 +320,7 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          node ${{ github.workspace }}/tools/perlpack.js --ld  /opt/wasi-sdk/bin/wasm-ld -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
+          node ${{ github.workspace }}/tools/perlpack.js --ld  /opt/wasi-sdk/bin/wasm-ld -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h --prefix /zeroperl
 
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
