@@ -377,7 +377,10 @@ jobs:
           export PATH="$PERLSTRIP_BIN:$PATH"
 
           echo "Stripping comments from .pl and .pm files in /zeroperl..."
-          find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \) -print0 | xargs -0 perlstrip -s
+          for f in $(find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \)); do
+            echo "Stripping $f..."
+            perlstrip -s "$f"
+          done
 
           mkdir  ${{ github.workspace }}/gen
 
