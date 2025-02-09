@@ -320,11 +320,16 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          node ${{ github.workspace }}/tools/perlpack.js --ld  /opt/wasi-sdk/bin/wasm-ld -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h --prefix /zeroperl
+          node ${{ github.workspace }}/tools/sfs.js -i ./prefix -o ./gen/zeropearl.h --prefix /zeroperl
 
-          wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
-          cp ${{ github.workspace }}/stubs/wasiperl.c . && wasic -c wasiperl.c -o wasiperl.o -I. \
+          cp ${{ github.workspace }}/stubs/zeroperl.c .
+
+          wasic \
+            -o zeroperl \
+            -flto=full \
+            -O3 \
+            -static \
             -mllvm -wasm-enable-sjlj \
             -lsetjmp \
             -DNO_MATHOMS \
@@ -332,19 +337,22 @@ jobs:
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
             -D_GNU_SOURCE -D_POSIX_C_SOURCE \
             -DBIG_TIME \
+            -Wno-implicit-function-declaration \
             -Wno-null-pointer-arithmetic \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
-            -I${{ github.workspace }}/stubs \
-            I${{ github.workspace }}/gen \
+            -lwasi-emulated-mman \
             -I. \
-            -lwasi-emulated-mman
-
-          cat wasm/perlpack.h.txt
-          
-          wasic -o perlwasi -flto=full -O3 -static wasiperl.o stubs.o libperl.a $(cat ${{ github.workspace }}/gen/perlpack.h.txt) \
+            -I ${{ github.workspace }}/stubs \
+            -I ${{ github.workspace }}/gen \
+            -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
             -Wl,--strip-all \
-            -mllvm -wasm-enable-sjlj -Wl,-mllvm,-wasm-enable-sjlj \
+            -Wl,-mllvm,-wasm-enable-sjlj \
+            \
+            ${{ github.workspace }}/stubs/stubs.c \
+            ${{ github.workspace }}/gen/zeroperl_data.c \
+            zeroperl.c \
+            \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -Wl,--wrap=fopen \
             -Wl,--wrap=open \
@@ -405,8 +413,8 @@ jobs:
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
             -lsetjmp \
-            -D_GNU_SOURCE -D_POSIX_C_SOURCE \
-            -v -ferror-limit=0
+            -v \
+            -ferror-limit=0
 
            wasm-opt perlwasi --translate-to-exnref -all -o zeroperl.wasm
 
