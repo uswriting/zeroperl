@@ -39,17 +39,6 @@ extern int __real_stat(const char *restrict path, struct stat *restrict statbuf)
 extern int __real_fstat(int fd, struct stat *statbuf);
 
 /* -------------------------------------------------------------------------
- * In-memory data for the “virtual filesystem.”
- * ------------------------------------------------------------------------- */
-extern size_t sfs_builtin_files_num;
-extern struct
-{
-    const char *abspath;
-    const unsigned char *start;
-    const unsigned char *end;
-} sfs_entries[];
-
-/* -------------------------------------------------------------------------
  * We'll track at most 32 FDs (0..31).
  * This is a small limit, but you can adjust as needed.
  * ------------------------------------------------------------------------- */
