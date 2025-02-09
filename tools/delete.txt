@@ -1261,4 +1261,7 @@ lib/5.40.0/unicore/lib/XIDS
 lib/5.40.0/unicore/lib/XIDS/Y.pl
 lib/5.40.0/unicore/uni_keywords.pl
 lib/5.40.0/unicore/version
+lib/5.40.0/wasm32-wasi/File/RandomAccess.pod
 lib/5.40.0/wasm32-wasi/Image/ExifTool.pod
+lib/5.40.0/wasm32-wasi/Image/ExifTool/TagNames.pod
+lib/5.40.0/wasm32-wasi/Image/ExifTool/MIEUnits.pod
