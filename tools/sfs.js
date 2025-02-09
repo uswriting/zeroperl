@@ -60,19 +60,24 @@ if (!fs.existsSync(inputPath) || !fs.statSync(inputPath).isDirectory()) {
 // Traverse the input directory and collect file data.
 let files = [];     // full paths of files
 let relpaths = [];  // relative paths (UNIX-style) of files
-let safepaths = []; // "safe" names (by replacing '/', '.', '-' with '_')
 let fileDatas = []; // Buffer for each file’s content
 
 function traverseDir(currentDir) {
     const entries = fs.readdirSync(currentDir);
     for (const entry of entries) {
-        // (Do not skip dotfiles unless a skip regex is provided.)
+        // Skip hidden files/folders (those that start with a dot).
+        if (entry.startsWith('.')) {
+            continue;
+        }
         const fullPath = path.join(currentDir, entry);
         const stat = fs.statSync(fullPath);
         const rel = path.relative(inputPath, fullPath);
+
+        // Apply skip regex if provided.
         if (skipRegex && new RegExp(skipRegex).test(rel)) {
             continue;
         }
+
         if (stat.isDirectory()) {
             traverseDir(fullPath);
         } else if (stat.isFile()) {
@@ -80,9 +85,6 @@ function traverseDir(currentDir) {
             // Convert to UNIX-style (forward slashes) relative path.
             const relUnix = rel.split(path.sep).join('/');
             relpaths.push(relUnix);
-            // Generate a safe name for use in symbol naming.
-            const safe = relUnix.replace(/[\/\.\-]/g, '_');
-            safepaths.push(safe);
             fileDatas.push(fs.readFileSync(fullPath));
         }
     }
@@ -121,7 +123,6 @@ headerLines.push(`#define SFS_BUILTIN_PREFIX "${prefix}"`);
 headerLines.push('');
 headerLines.push('struct sfs_entry {');
 headerLines.push('    const char *abspath;    // Virtual absolute path (prefix + relative path)');
-headerLines.push('    const char *safepath;   // A safe version of the relative path');
 headerLines.push('    const unsigned char *start;  // Pointer into the data blob');
 headerLines.push('    const unsigned char *end;    // Pointer just past the end of the file data');
 headerLines.push('};');
@@ -170,8 +171,7 @@ for (let i = 0; i < fileDatas.length; i++) {
     const virtualPath = prefix ? path.posix.join(prefix, relpaths[i]) : relpaths[i];
     // Escape any double quotes.
     const abspathEscaped = virtualPath.replace(/"/g, '\\"');
-    const safepathEscaped = safepaths[i].replace(/"/g, '\\"');
-    dataLines.push(`    { "${abspathEscaped}", "${safepathEscaped}", sfs_builtin_data + ${offsets[i]}, sfs_builtin_data + ${offsets[i]} + ${sizes[i]} },`);
+    dataLines.push(`    { "${abspathEscaped}", sfs_builtin_data + ${offsets[i]}, sfs_builtin_data + ${offsets[i]} + ${sizes[i]} },`);
 }
 dataLines.push('};');
 

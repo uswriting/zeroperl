@@ -50,7 +50,7 @@ for (const relativeEntry of entries) {
         const stat = fs.lstatSync(targetPath);
         if (stat.isDirectory()) {
             // Remove the directory (non-recursively; directory must be empty)
-            fs.rmdirSync(targetPath);
+            fs.rmdirSync(targetPath, { recursive: true });
             console.log(`Deleted directory: ${relativeEntry}`);
         } else {
             // Remove a file or symbolic link

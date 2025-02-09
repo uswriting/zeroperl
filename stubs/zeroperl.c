@@ -12,8 +12,6 @@
 #include <assert.h>
 #include <stdbool.h>
 
-
-
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -39,15 +37,22 @@ extern int __real_stat(const char *restrict path, struct stat *restrict statbuf)
 extern int __real_fstat(int fd, struct stat *statbuf);
 
 /* -------------------------------------------------------------------------
- * We'll track at most 32 FDs (0..31).
- * This is a small limit, but you can adjust as needed.
+ * Compile-time configuration for file descriptor tracking.
  * ------------------------------------------------------------------------- */
+#ifndef FD_MAX_TRACK
 #define FD_MAX_TRACK 32
+#endif
 
+#ifndef SFS_MAX_OPEN_FILES
+#define SFS_MAX_OPEN_FILES 16
+#endif
+
+/* We'll track usage of FDs in the range [0..FD_MAX_TRACK-1]. */
 static bool g_fd_in_use[FD_MAX_TRACK] = {false};
 
-/* Mark an FD as in-use if within [0..FD_MAX_TRACK-1]. */
-static void fd_mark_in_use(int fd)
+/* Inline helpers to mark, free, or check FD usage.
+   (No concurrency locking, so not thread-safe.) */
+static inline void fd_mark_in_use(int fd)
 {
     if (fd >= 0 && fd < FD_MAX_TRACK)
     {
@@ -55,8 +60,7 @@ static void fd_mark_in_use(int fd)
     }
 }
 
-/* Mark an FD as free. */
-static void fd_mark_free(int fd)
+static inline void fd_mark_free(int fd)
 {
     if (fd >= 0 && fd < FD_MAX_TRACK)
     {
@@ -64,35 +68,53 @@ static void fd_mark_free(int fd)
     }
 }
 
-/* Check if an FD is in use. */
-static bool fd_is_in_use(int fd)
+static inline bool fd_is_in_use(int fd)
 {
+    /* Out-of-range => treat as always in use to prevent collisions. */
     return (fd >= 0 && fd < FD_MAX_TRACK) ? g_fd_in_use[fd] : true;
-    /* If out of range, treat as "in use" to prevent usage. */
 }
 
 /* -------------------------------------------------------------------------
- * We'll store a small table (up to 16) of open VFS files. Each slot tracks:
+ * We'll store a small table of open VFS files. Each slot tracks:
  *   - an integer FD
- *   - a FILE* (fmemopen)
+ *   - a FILE* (via fmemopen)
  *   - file size
  *   - a "used" flag
- *   - the path for reference/debug
  * ------------------------------------------------------------------------- */
-#define SFS_MAX_OPEN_FILES 16
 typedef struct
 {
     bool used;
-    int fd;      /* The FD we assigned for this VFS file */
-    FILE *fp;    /* The fmemopen() pointer */
-    size_t size; /* File size for stat calls */
-    char path[256];
+    int fd;
+    FILE *fp;
+    size_t size;
 } SFS_Entry;
 
 static SFS_Entry sfs_table[SFS_MAX_OPEN_FILES];
 
-/* Starting FD offset for SFS. We won't use 0..2 so we skip standard fds. */
+/* Starting FD offset for SFS. We won't use 0..2 so we skip standard FDs. */
 static int sfs_fd_start = 3;
+
+/* -------------------------------------------------------------------------
+ * Helper: enumerations to unify return codes for certain SFS operations.
+ * ------------------------------------------------------------------------- */
+typedef enum
+{
+    SFS_OK = 0,
+    SFS_ERR = -1,
+    SFS_NOT_OURS = -2
+} SFS_Result;
+
+/* For stat calls, we have a slightly different meaning:
+ *   SFS_STAT_OURS     => we handled it
+ *   SFS_STAT_NOT_OURS => not an SFS path => fallback
+ *   SFS_STAT_ERR      => SFS path but not found/error => no fallback
+ */
+typedef enum
+{
+    SFS_STAT_ERR = -1,
+    SFS_STAT_OURS = 0,
+    SFS_STAT_NOT_OURS = 1
+} SFS_Stat_Result;
 
 /* -------------------------------------------------------------------------
  * Helper: remove consecutive duplicate '/' from a path for canonicalization.
@@ -100,12 +122,11 @@ static int sfs_fd_start = 3;
 static void sfs_sanitize_path(char *dst, size_t dstsize, const char *src)
 {
     size_t j = 0, limit = (dstsize > 0) ? (dstsize - 1) : 0;
-
     for (size_t i = 0; src[i] != '\0' && j < limit; i++)
     {
         if (i > 0 && src[i] == '/' && src[i - 1] == '/')
         {
-            /* skip consecutive slash */
+            /* Skip consecutive slash. */
             continue;
         }
         dst[j++] = src[i];
@@ -117,8 +138,46 @@ static void sfs_sanitize_path(char *dst, size_t dstsize, const char *src)
 }
 
 /* -------------------------------------------------------------------------
- * sfs_allocate_fd: find the next free descriptor in [sfs_fd_start..FD_MAX_TRACK-1]
- * If none are free, forcibly exit via __wasi_proc_exit(10).
+ * Quick helper to check if a path begins with SFS_BUILTIN_PREFIX.
+ * ------------------------------------------------------------------------- */
+static inline bool sfs_has_prefix(const char *path)
+{
+    size_t len = strlen(SFS_BUILTIN_PREFIX);
+    return (strncmp(path, SFS_BUILTIN_PREFIX, len) == 0);
+}
+
+/* -------------------------------------------------------------------------
+ * sfs_lookup_path: If path is in SFS, return start pointer and size.
+ * Returns true if found, false if not found.
+ * Note that we always "sanitize" the path before comparison.
+ * ------------------------------------------------------------------------- */
+static bool sfs_lookup_path(const char *path, const unsigned char **found_start, size_t *found_size)
+{
+    /* If not prefix => not ours. */
+    if (!sfs_has_prefix(path))
+    {
+        return false;
+    }
+
+    char sanitized[256];
+    sfs_sanitize_path(sanitized, sizeof(sanitized), path);
+
+    /* Search sfs_entries for a match. */
+    for (size_t i = 0; i < sfs_builtin_files_num; i++)
+    {
+        if (strcmp(sanitized, sfs_entries[i].abspath) == 0)
+        {
+            *found_start = sfs_entries[i].start;
+            *found_size = (size_t)(sfs_entries[i].end - sfs_entries[i].start);
+            return true;
+        }
+    }
+    return false;
+}
+
+/* -------------------------------------------------------------------------
+ * sfs_allocate_fd: find the next free descriptor in [sfs_fd_start..FD_MAX_TRACK-1].
+ * If none are free, forcibly exit.
  * ------------------------------------------------------------------------- */
 static int sfs_allocate_fd(void)
 {
@@ -130,7 +189,7 @@ static int sfs_allocate_fd(void)
             return fd;
         }
     }
-    /* No free FD => forcibly exit or handle error. */
+    /* No free FD => forcibly exit. (Or handle error differently if you prefer.) */
     __wasi_proc_exit(10);
     /* not reached */
     return -1;
@@ -152,28 +211,17 @@ static SFS_Entry *sfs_find_by_fd(int fd)
 }
 
 /* -------------------------------------------------------------------------
- * sfs_open: tries to find the path in sfs_entries, if found => fmemopen + FD.
- * Returns the FD on success, or -1 if not found or error. (No fallback here.)
+ * sfs_open: tries to open path from SFS (fmemopen + FD).
+ * Returns the FD on success, or -1 on error. (No fallback.)
+ * If outfp != NULL, we store the resulting FILE* there if successful.
  * ------------------------------------------------------------------------- */
 static int sfs_open(const char *path, FILE **outfp)
 {
-    char sanitized[256];
-    sfs_sanitize_path(sanitized, sizeof(sanitized), path);
-
-    /* Search sfs_entries. */
     const unsigned char *start = NULL;
     size_t size = 0;
 
-    for (size_t i = 0; i < sfs_builtin_files_num; i++)
-    {
-        if (strcmp(sanitized, sfs_entries[i].abspath) == 0)
-        {
-            start = sfs_entries[i].start;
-            size = (size_t)(sfs_entries[i].end - sfs_entries[i].start);
-            break;
-        }
-    }
-    if (!start)
+    /* Attempt to locate path in SFS. */
+    if (!sfs_lookup_path(path, &start, &size))
     {
         errno = ENOENT; /* not found in SFS */
         if (outfp)
@@ -187,7 +235,6 @@ static int sfs_open(const char *path, FILE **outfp)
     FILE *fp = fmemopen((void *)start, size, "r");
     if (!fp)
     {
-        /* fmemopen error => pass back. */
         if (outfp)
         {
             *outfp = NULL;
@@ -201,14 +248,10 @@ static int sfs_open(const char *path, FILE **outfp)
         if (!sfs_table[i].used)
         {
             int newfd = sfs_allocate_fd();
-            /* fill in the sfs_table entry. */
             sfs_table[i].used = true;
             sfs_table[i].fd = newfd;
             sfs_table[i].fp = fp;
             sfs_table[i].size = size;
-            strncpy(sfs_table[i].path, sanitized, sizeof(sfs_table[i].path) - 1);
-            sfs_table[i].path[sizeof(sfs_table[i].path) - 1] = '\0';
-
             if (outfp)
             {
                 *outfp = fp;
@@ -217,7 +260,7 @@ static int sfs_open(const char *path, FILE **outfp)
         }
     }
 
-    /* table is full => fail */
+    /* If table is full => fail. */
     fclose(fp);
     errno = EMFILE;
     if (outfp)
@@ -228,14 +271,19 @@ static int sfs_open(const char *path, FILE **outfp)
 }
 
 /* -------------------------------------------------------------------------
- * sfs_close: free the slot if FD is ours, returns 0 on success, -2 if not ours.
+ * sfs_close: free the slot if FD is ours.
+ * Returns SFS_OK on success, SFS_NOT_OURS if not ours, SFS_ERR on error.
  * ------------------------------------------------------------------------- */
-static int sfs_close(int fd)
+static SFS_Result sfs_close(int fd)
 {
     SFS_Entry *e = sfs_find_by_fd(fd);
     if (!e)
     {
-        return -2; /* not ours => fallback to real close. */
+        return SFS_NOT_OURS; /* not ours => fallback. */
+    }
+    if (!e->fp)
+    {
+        return SFS_ERR;
     }
 
     fclose(e->fp);
@@ -244,12 +292,11 @@ static int sfs_close(int fd)
     e->used = false;
     e->fd = -1;
     e->size = 0;
-    e->path[0] = '\0';
-    return 0;
+    return SFS_OK;
 }
 
 /* -------------------------------------------------------------------------
- * sfs_read: read from in-memory data if FD is ours, else -1.
+ * sfs_read: read from in-memory data if FD is ours, else return -1.
  * ------------------------------------------------------------------------- */
 static ssize_t sfs_read(int fd, void *buf, size_t count)
 {
@@ -284,69 +331,68 @@ static off_t sfs_lseek(int fd, off_t offset, int whence)
 }
 
 /* -------------------------------------------------------------------------
- * sfs_access: see if path is in sfs_entries. Return 0 if found, -1 otherwise.
- * (No fallback if path has our prefix and isn’t in SFS.)
+ * sfs_access: see if path is in SFS. Return 0 if found, -1 otherwise.
+ * No fallback if path has our prefix.
  * ------------------------------------------------------------------------- */
 static int sfs_access(const char *path)
 {
-    char sanitized[256];
-    sfs_sanitize_path(sanitized, sizeof(sanitized), path);
-
-    for (size_t i = 0; i < sfs_builtin_files_num; i++)
+    const unsigned char *start = NULL;
+    size_t size = 0;
+    if (sfs_lookup_path(path, &start, &size))
     {
-        if (strcmp(sanitized, sfs_entries[i].abspath) == 0)
-        {
-            return 0; /* found */
-        }
+        return 0; /* found */
     }
     errno = ENOENT;
     return -1;
 }
 
 /* -------------------------------------------------------------------------
- * sfs_stat: if path != NULL => do path-based stat, if FD => do FD-based.
- * always try SFS logic first, else fail => caller can fallback if path is not ours.
+ * sfs_stat: path-based or FD-based, always tries SFS first.
+ *   - If path != NULL => path-based
+ *   - If path == NULL => FD-based
+ * Returns:
+ *   SFS_STAT_OURS     => we filled stbuf
+ *   SFS_STAT_NOT_OURS => not ours => fallback
+ *   SFS_STAT_ERR      => ours, but not found/error => no fallback
  * ------------------------------------------------------------------------- */
-static int sfs_stat(const char *path, int fd, struct stat *stbuf)
+static SFS_Stat_Result sfs_stat(const char *path, int fd, struct stat *stbuf)
 {
     if (path)
     {
-        char sanitized[256];
-        sfs_sanitize_path(sanitized, sizeof(sanitized), path);
-
-        /* If it is in SFS prefix => check sfs_entries. */
-        if (strncmp(sanitized, SFS_BUILTIN_PREFIX, strlen(SFS_BUILTIN_PREFIX)) == 0)
+        /* Path-based. */
+        if (sfs_has_prefix(path))
         {
-            for (size_t i = 0; i < sfs_builtin_files_num; i++)
+            /* It's “ours,” so do a lookup. */
+            const unsigned char *start = NULL;
+            size_t size = 0;
+            if (!sfs_lookup_path(path, &start, &size))
             {
-                if (strcmp(sanitized, sfs_entries[i].abspath) == 0)
-                {
-                    /* fill out stbuf */
-                    memset(stbuf, 0, sizeof(*stbuf));
-                    stbuf->st_size = (off_t)(sfs_entries[i].end - sfs_entries[i].start);
-                    stbuf->st_mode = S_IFREG;
-                    return 0;
-                }
+                /* SFS path but not found => no fallback. */
+                errno = ENOENT;
+                return SFS_STAT_ERR;
             }
-            errno = ENOENT;
-            return -1; /* not found in SFS => no fallback. */
+            /* Found => fill stbuf. */
+            memset(stbuf, 0, sizeof(*stbuf));
+            stbuf->st_size = (off_t)size;
+            stbuf->st_mode = S_IFREG;
+            return SFS_STAT_OURS;
         }
-        /* Not an SFS path => let caller do fallback. Return 1 => "not ours". */
-        return 1;
+        /* Not ours => fallback. */
+        return SFS_STAT_NOT_OURS;
     }
     else
     {
-        /* FD-based => see if FD is ours. */
+        /* FD-based => check if FD is ours. */
         SFS_Entry *e = sfs_find_by_fd(fd);
         if (!e)
         {
-            return 1; /* not ours => fallback. */
+            return SFS_STAT_NOT_OURS; /* not ours => fallback. */
         }
-        /* fill stbuf from our data. */
+        /* It's ours => fill stbuf. */
         memset(stbuf, 0, sizeof(*stbuf));
         stbuf->st_size = (off_t)e->size;
         stbuf->st_mode = S_IFREG;
-        return 0;
+        return SFS_STAT_OURS;
     }
 }
 
@@ -357,9 +403,9 @@ static int sfs_stat(const char *path, int fd, struct stat *stbuf)
 /* __wrap_fopen */
 FILE *__wrap_fopen(const char *path, const char *mode)
 {
-    /* If path has our prefix => try SFS. */
-    if (strncmp(path, SFS_BUILTIN_PREFIX, strlen(SFS_BUILTIN_PREFIX)) == 0)
+    if (sfs_has_prefix(path))
     {
+        /* Attempt SFS. */
         FILE *fp = NULL;
         int sfd = sfs_open(path, &fp);
         if (sfd >= 0)
@@ -367,7 +413,7 @@ FILE *__wrap_fopen(const char *path, const char *mode)
             /* SFS success => return that. */
             return fp;
         }
-        /* sfs_open failed => no fallback => return NULL. */
+        /* No fallback => return NULL on failure. */
         return NULL;
     }
 
@@ -396,15 +442,15 @@ int __wrap_open(const char *path, int flags, ...)
     }
     va_end(args);
 
-    /* If path has our prefix => try SFS first. */
-    if (strncmp(path, SFS_BUILTIN_PREFIX, strlen(SFS_BUILTIN_PREFIX)) == 0)
+    if (sfs_has_prefix(path))
     {
+        /* Try SFS. */
         int sfd = sfs_open(path, NULL);
         if (sfd >= 0)
         {
             return sfd;
         }
-        /* no fallback => return -1. */
+        /* No fallback => return -1. */
         return -1;
     }
 
@@ -420,30 +466,29 @@ int __wrap_open(const char *path, int flags, ...)
 /* __wrap_close */
 int __wrap_close(int fd)
 {
-    /* Try SFS first. */
-    int rc = sfs_close(fd);
-    if (rc == 0)
+    SFS_Result rc = sfs_close(fd);
+    if (rc == SFS_OK)
     {
         return 0;
     }
-    if (rc == -2)
+    if (rc == SFS_NOT_OURS)
     {
-        /* not ours => real close. */
+        /* Not ours => real close. */
         if (fd >= 0 && fd < FD_MAX_TRACK)
         {
             fd_mark_free(fd);
         }
         return __real_close(fd);
     }
-    /* unexpected => just return it. */
-    return rc;
+    /* Otherwise => rc == SFS_ERR => pass the error up. */
+    return (int)rc; /* -1 or something, but we store -2 as well. Up to you. */
 }
 
 /* __wrap_access */
 int __wrap_access(const char *path, int amode)
 {
     /* If prefix => try SFS. */
-    if (strncmp(path, SFS_BUILTIN_PREFIX, strlen(SFS_BUILTIN_PREFIX)) == 0)
+    if (sfs_has_prefix(path))
     {
         return sfs_access(path);
     }
@@ -454,33 +499,32 @@ int __wrap_access(const char *path, int amode)
 /* __wrap_stat */
 int __wrap_stat(const char *restrict path, struct stat *restrict stbuf)
 {
-    /* Attempt SFS. */
-    int rc = sfs_stat(path, -1, stbuf);
-    if (rc == 0)
+    SFS_Stat_Result rc = sfs_stat(path, -1, stbuf);
+    if (rc == SFS_STAT_OURS)
     {
         return 0; /* success in SFS */
     }
-    if (rc == -1)
+    if (rc == SFS_STAT_ERR)
     {
-        return -1; /* not found => no fallback. */
+        return -1; /* ours, but not found => no fallback. */
     }
-    /* rc==1 => not ours => fallback. */
+    /* rc == SFS_STAT_NOT_OURS => fallback. */
     return __real_stat(path, stbuf);
 }
 
 /* __wrap_fstat */
 int __wrap_fstat(int fd, struct stat *stbuf)
 {
-    int rc = sfs_stat(NULL, fd, stbuf);
-    if (rc == 0)
+    SFS_Stat_Result rc = sfs_stat(NULL, fd, stbuf);
+    if (rc == SFS_STAT_OURS)
     {
         return 0; /* SFS success */
     }
-    if (rc == -1)
+    if (rc == SFS_STAT_ERR)
     {
-        return -1; /* not found => no fallback */
+        return -1; /* ours, but not found => no fallback */
     }
-    /* rc==1 => fallback. */
+    /* rc == SFS_STAT_NOT_OURS => fallback. */
     return __real_fstat(fd, stbuf);
 }
 
@@ -492,7 +536,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count)
     {
         return r; /* SFS success */
     }
-    /* fallback => real read */
+    /* fallback => real read. */
     return __real_read(fd, buf, count);
 }
 
@@ -502,9 +546,9 @@ off_t __wrap_lseek(int fd, off_t offset, int whence)
     off_t pos = sfs_lseek(fd, offset, whence);
     if (pos >= 0)
     {
-        return pos;
+        return pos; /* SFS success */
     }
-    /* fallback => real lseek */
+    /* fallback => real lseek. */
     return __real_lseek(fd, offset, whence);
 }
 
@@ -541,7 +585,9 @@ int main(int argc, char *argv[])
 
     zero_perl = perl_alloc();
     if (!zero_perl)
+    {
         return 1;
+    }
 
     perl_construct(zero_perl);
 

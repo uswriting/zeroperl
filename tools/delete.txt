@@ -1265,3 +1265,5 @@ lib/5.40.0/wasm32-wasi/File/RandomAccess.pod
 lib/5.40.0/wasm32-wasi/Image/ExifTool.pod
 lib/5.40.0/wasm32-wasi/Image/ExifTool/TagNames.pod
 lib/5.40.0/wasm32-wasi/Image/ExifTool/MIEUnits.pod
+lib/5.40.0/wasm32-wasi/Image/ExifTool/Lang
+lib/5.40.0/wasm32-wasi/Image/ExifTool/Charset
