@@ -109,22 +109,29 @@ jobs:
           sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
           make
           make install
-
-      - name: Install Perl-Strip (native)
+        
+          
+      - name: Install App::cpanminus (native)
         shell: bash
         run: |
-          # Make sure we use the native Perl in PATH
+          # Ensure we use the native Perl's cpan
           export PATH="$PWD/native/prefix/bin:$PATH"
           
-          # Download and extract
-          curl -L https://cpan.metacpan.org/authors/id/M/ML/MLEHMANN/Perl-Strip-1.2.tar.gz | tar -xzf -
-          cd Perl-Strip-1.2
+          # Confirm that cpan points to our native prefix
+          command -v cpan
+          cpan --version
           
-          # Build & install to the same prefix as the native Perl
-          perl Makefile.PL
-          make
-          make test
-          make install PREFIX="$PWD/../native/prefix"
+          # Install cpanminus into the native prefix
+          cpan -i --notest App::cpanminus
+
+
+      - name: Install Perl::Strip
+        shell: bash
+        run: |
+          # Still ensure we use the native prefix
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          
+          cpanm Perl::Strip
 
 
       - name: Test Perl::Strip CLI (native)
