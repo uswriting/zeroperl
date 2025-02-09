@@ -116,11 +116,7 @@ jobs:
         run: |
           # Ensure we use the native Perl's cpan
           export PATH="$PWD/native/prefix/bin:$PATH"
-          
-          # Confirm that cpan points to our native prefix
-          command -v cpan
-          cpan --version
-          
+
           # Install cpanminus into the native prefix
           cpan App::cpanminus <<<yes
 
