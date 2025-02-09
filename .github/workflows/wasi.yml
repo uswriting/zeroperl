@@ -17,6 +17,10 @@ jobs:
         uses: actions/checkout@v4
 
 
+      - name: Create /zeroperl directory
+        run: mkdir -p /zeroperl
+
+
       - name: Nuke default GitHub Actions Perl
         run: |
           echo "Default system perl is at: $(which perl)"
@@ -295,7 +299,7 @@ jobs:
             -Dhintfile=wasi \
             -Dhostperl="$PWD/../native/miniperl" \
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
-            -Dprefix="$PWD/prefix" \
+            -Dprefix="/zeroperl" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
             -Dusedevel \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
@@ -311,16 +315,16 @@ jobs:
           #find ./prefix
 
 
-          rm -rf ./prefix/bin
-          find ./prefix -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ ./prefix/lib/5.40.0/wasm32-wasi/File/
-          mkdir -p ./prefix/lib/5.40.0/wasm32-wasi/Image
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ ./prefix/lib/5.40.0/wasm32-wasi/Image/
+          rm -rf /zeroperl/bin
+          find /zeroperl -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
+          cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
+          mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
+          cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
           echo "TODO: further cleanup"
 
           mkdir  ${{ github.workspace }}/gen
 
-          node ${{ github.workspace }}/tools/sfs.js -i ./prefix -o ./gen/zeropearl.h --prefix /zeroperl
+          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeropearl.h --prefix /zeroperl
 
 
           cp ${{ github.workspace }}/stubs/zeroperl.c .
@@ -422,7 +426,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perl-wasi-prefix
-          path: wasm/prefix
+          path: /zeroperl
 
       - name: Upload Additional Artifacts
         uses: actions/upload-artifact@v4
