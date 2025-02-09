@@ -503,163 +503,6 @@ off_t __wrap_lseek(int fd, off_t offset, int whence)
     return __real_lseek(fd, offset, whence);
 }
 
-/* -------------------------------------------------------------------------
- * Perl bootstrap routines
- * ------------------------------------------------------------------------- */
-/**
- * @brief Initialize various XS modules (like DynaLoader, mro, etc.).
- *
- * This function is used by the embedded Perl interpreter to bootstrap core
- * modules. It is essentially the same pattern used by "miniperlmain.c" in
- * the Perl source distribution.
- */
-void xs_init(pTHX)
-{
-    static const char file[] = __FILE__;
-    dXSUB_SYS;
-    PERL_UNUSED_CONTEXT;
-
-    extern void boot_DynaLoader(pTHX_ CV * cv);
-    newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
-
-    extern void boot_mro(pTHX_ CV * cv);
-    newXS("mro::bootstrap", boot_mro, file);
-
-    extern void boot_Devel__Peek(pTHX_ CV * cv);
-    newXS("Devel::Peek", boot_Devel__Peek, file);
-
-    extern void boot_File__DosGlob(pTHX_ CV * cv);
-    newXS("File::DosGlob::bootstrap", boot_File__DosGlob, file);
-
-    extern void boot_File__Glob(pTHX_ CV * cv);
-    newXS("File::Glob::bootstrap", boot_File__Glob, file);
-
-    extern void boot_Sys__Syslog(pTHX_ CV * cv);
-    newXS("Sys::Syslog::bootstrap", boot_Sys__Syslog, file);
-
-    extern void boot_Sys__Hostname(pTHX_ CV * cv);
-    newXS("Sys::Hostname::bootstrap", boot_Sys__Hostname, file);
-
-    extern void boot_PerlIO__via(pTHX_ CV * cv);
-    newXS("PerlIO::via::bootstrap", boot_PerlIO__via, file);
-
-    extern void boot_PerlIO__mmap(pTHX_ CV * cv);
-    newXS("PerlIO::mmap::bootstrap", boot_PerlIO__mmap, file);
-
-    extern void boot_PerlIO__encoding(pTHX_ CV * cv);
-    newXS("PerlIO::encoding::bootstrap", boot_PerlIO__encoding, file);
-
-    extern void boot_B(pTHX_ CV * cv);
-    newXS("B::bootstrap", boot_B, file);
-
-    extern void boot_attributes(pTHX_ CV * cv);
-    newXS("attributes::bootstrap", boot_attributes, file);
-
-    extern void boot_Unicode__Normalize(pTHX_ CV * cv);
-    newXS("Unicode::Normalize::bootstrap", boot_Unicode__Normalize, file);
-
-    extern void boot_Unicode__Collate(pTHX_ CV * cv);
-    newXS("Unicode::Collate::bootstrap", boot_Unicode__Collate, file);
-
-    extern void boot_threads(pTHX_ CV * cv);
-    newXS("threads::bootstrap", boot_threads, file);
-
-    extern void boot_threads__shared(pTHX_ CV * cv);
-    newXS("threads::shared::bootstrap", boot_threads__shared, file);
-
-    extern void boot_IPC__SysV(pTHX_ CV * cv);
-    newXS("IPC::SysV::bootstrap", boot_IPC__SysV, file);
-
-    extern void boot_re(pTHX_ CV * cv);
-    newXS("re::bootstrap", boot_re, file);
-
-    extern void boot_Digest__MD5(pTHX_ CV * cv);
-    newXS("Digest::MD5::bootstrap", boot_Digest__MD5, file);
-
-    extern void boot_Digest__SHA(pTHX_ CV * cv);
-    newXS("Digest::SHA::bootstrap", boot_Digest__SHA, file);
-
-    extern void boot_SDBM_File(pTHX_ CV * cv);
-    newXS("SDBM_File::bootstrap", boot_SDBM_File, file);
-
-    extern void boot_Math__BigInt__FastCalc(pTHX_ CV * cv);
-    newXS("Math::BigInt::FastCalc::bootstrap", boot_Math__BigInt__FastCalc, file);
-
-    extern void boot_Data__Dumper(pTHX_ CV * cv);
-    newXS("Data::Dumper::bootstrap", boot_Data__Dumper, file);
-
-    extern void boot_I18N__Langinfo(pTHX_ CV * cv);
-    newXS("I18N::Langinfo::bootstrap", boot_I18N__Langinfo, file);
-
-    extern void boot_Time__Piece(pTHX_ CV * cv);
-    newXS("Time::Piece::bootstrap", boot_Time__Piece, file);
-
-    extern void boot_IO(pTHX_ CV * cv);
-    newXS("IO::bootstrap", boot_IO, file);
-
-    extern void boot_Hash__Util__FieldHash(pTHX_ CV * cv);
-    newXS("Hash::Util::FieldHash::bootstrap", boot_Hash__Util__FieldHash, file);
-
-    extern void boot_Hash__Util(pTHX_ CV * cv);
-    newXS("Hash::Util::bootstrap", boot_Hash__Util, file);
-
-    extern void boot_Filter__Util__Call(pTHX_ CV * cv);
-    newXS("Filter::Util::Call::bootstrap", boot_Filter__Util__Call, file);
-
-    extern void boot_POSIX(pTHX_ CV * cv);
-    newXS("POSIX::bootstrap", boot_POSIX, file);
-
-    extern void boot_Encode__Unicode(pTHX_ CV * cv);
-    newXS("Encode::Unicode::bootstrap", boot_Encode__Unicode, file);
-
-    extern void boot_Encode(pTHX_ CV * cv);
-    newXS("Encode::bootstrap", boot_Encode, file);
-
-    extern void boot_Encode__JP(pTHX_ CV * cv);
-    newXS("Encode::JP::bootstrap", boot_Encode__JP, file);
-
-    extern void boot_Encode__KR(pTHX_ CV * cv);
-    newXS("Encode::KR::bootstrap", boot_Encode__KR, file);
-
-    extern void boot_Encode__EBCDIC(pTHX_ CV * cv);
-    newXS("Encode::EBCDIC::bootstrap", boot_Encode__EBCDIC, file);
-
-    extern void boot_Encode__CN(pTHX_ CV * cv);
-    newXS("Encode::CN::bootstrap", boot_Encode__CN, file);
-
-    extern void boot_Encode__Symbol(pTHX_ CV * cv);
-    newXS("Encode::Symbol::bootstrap", boot_Encode__Symbol, file);
-
-    extern void boot_Encode__Byte(pTHX_ CV * cv);
-    newXS("Encode::Byte::bootstrap", boot_Encode__Byte, file);
-
-    extern void boot_Encode__TW(pTHX_ CV * cv);
-    newXS("Encode::TW::bootstrap", boot_Encode__TW, file);
-
-    extern void boot_Compress__Raw__Zlib(pTHX_ CV * cv);
-    newXS("Compress::Raw::Zlib::bootstrap", boot_Compress__Raw__Zlib, file);
-
-    extern void boot_Compress__Raw__Bzip2(pTHX_ CV * cv);
-    newXS("Compress::Raw::Bzip2::bootstrap", boot_Compress__Raw__Bzip2, file);
-
-    extern void boot_MIME__Base64(pTHX_ CV * cv);
-    newXS("MIME::Base64::bootstrap", boot_MIME__Base64, file);
-
-    extern void boot_Cwd(pTHX_ CV * cv);
-    newXS("Cwd::bootstrap", boot_Cwd, file);
-
-    extern void boot_Storable(pTHX_ CV * cv);
-    newXS("Storable::bootstrap", boot_Storable, file);
-
-    extern void boot_List__Util(pTHX_ CV * cv);
-    newXS("List::Util::bootstrap", boot_List__Util, file);
-
-    extern void boot_Fcntl(pTHX_ CV * cv);
-    newXS("Fcntl::bootstrap", boot_Fcntl, file);
-
-    extern void boot_Opcode(pTHX_ CV * cv);
-    newXS("Opcode::bootstrap", boot_Opcode, file);
-}
 
 /* -------------------------------------------------------------------------
  * Main: Initialize and run the Perl interpreter.
@@ -704,4 +547,107 @@ int main(int argc, char *argv[])
     PERL_SYS_TERM();
 
     return exitstatus;
+}
+
+/* External module bootstraps */
+EXTERN_C void boot_DynaLoader(pTHX_ CV *cv);
+EXTERN_C void boot_mro(pTHX_ CV *cv);
+EXTERN_C void boot_Devel__Peek(pTHX_ CV *cv);
+EXTERN_C void boot_File__DosGlob(pTHX_ CV *cv);
+EXTERN_C void boot_File__Glob(pTHX_ CV *cv);
+EXTERN_C void boot_Sys__Syslog(pTHX_ CV *cv);
+EXTERN_C void boot_Sys__Hostname(pTHX_ CV *cv);
+EXTERN_C void boot_PerlIO__via(pTHX_ CV *cv);
+EXTERN_C void boot_PerlIO__mmap(pTHX_ CV *cv);
+EXTERN_C void boot_PerlIO__encoding(pTHX_ CV *cv);
+EXTERN_C void boot_B(pTHX_ CV *cv);
+EXTERN_C void boot_attributes(pTHX_ CV *cv);
+EXTERN_C void boot_Unicode__Normalize(pTHX_ CV *cv);
+EXTERN_C void boot_Unicode__Collate(pTHX_ CV *cv);
+EXTERN_C void boot_threads(pTHX_ CV *cv);
+EXTERN_C void boot_threads__shared(pTHX_ CV *cv);
+EXTERN_C void boot_IPC__SysV(pTHX_ CV *cv);
+EXTERN_C void boot_re(pTHX_ CV *cv);
+EXTERN_C void boot_Digest__MD5(pTHX_ CV *cv);
+EXTERN_C void boot_Digest__SHA(pTHX_ CV *cv);
+EXTERN_C void boot_SDBM_File(pTHX_ CV *cv);
+EXTERN_C void boot_Math__BigInt__FastCalc(pTHX_ CV *cv);
+EXTERN_C void boot_Data__Dumper(pTHX_ CV *cv);
+EXTERN_C void boot_I18N__Langinfo(pTHX_ CV *cv);
+EXTERN_C void boot_Time__Piece(pTHX_ CV *cv);
+EXTERN_C void boot_IO(pTHX_ CV *cv);
+EXTERN_C void boot_Hash__Util__FieldHash(pTHX_ CV *cv);
+EXTERN_C void boot_Hash__Util(pTHX_ CV *cv);
+EXTERN_C void boot_Filter__Util__Call(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__Unicode(pTHX_ CV *cv);
+EXTERN_C void boot_Encode(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__JP(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__KR(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__EBCDIC(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__CN(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__Symbol(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__Byte(pTHX_ CV *cv);
+EXTERN_C void boot_Encode__TW(pTHX_ CV *cv);
+EXTERN_C void boot_Compress__Raw__Zlib(pTHX_ CV *cv);
+EXTERN_C void boot_Compress__Raw__Bzip2(pTHX_ CV *cv);
+EXTERN_C void boot_MIME__Base64(pTHX_ CV *cv);
+EXTERN_C void boot_Cwd(pTHX_ CV *cv);
+EXTERN_C void boot_Storable(pTHX_ CV *cv);
+EXTERN_C void boot_List__Util(pTHX_ CV *cv);
+EXTERN_C void boot_Fcntl(pTHX_ CV *cv);
+EXTERN_C void boot_Opcode(pTHX_ CV *cv);
+
+static void xs_init(pTHX)
+{
+    static const char file[] = __FILE__;
+    dXSUB_SYS;
+    PERL_UNUSED_CONTEXT;
+
+    /* DynaLoader is a special case */
+    newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+    newXS("mro::bootstrap", boot_mro, file);
+    newXS("Devel::Peek::bootstrap", boot_Devel__Peek, file);
+    newXS("File::DosGlob::bootstrap", boot_File__DosGlob, file);
+    newXS("File::Glob::bootstrap", boot_File__Glob, file);
+    newXS("Sys::Syslog::bootstrap", boot_Sys__Syslog, file);
+    newXS("Sys::Hostname::bootstrap", boot_Sys__Hostname, file);
+    newXS("PerlIO::via::bootstrap", boot_PerlIO__via, file);
+    newXS("PerlIO::mmap::bootstrap", boot_PerlIO__mmap, file);
+    newXS("PerlIO::encoding::bootstrap", boot_PerlIO__encoding, file);
+    newXS("B::bootstrap", boot_B, file);
+    newXS("attributes::bootstrap", boot_attributes, file);
+    newXS("Unicode::Normalize::bootstrap", boot_Unicode__Normalize, file);
+    newXS("Unicode::Collate::bootstrap", boot_Unicode__Collate, file);
+    newXS("threads::bootstrap", boot_threads, file);
+    newXS("threads::shared::bootstrap", boot_threads__shared, file);
+    newXS("IPC::SysV::bootstrap", boot_IPC__SysV, file);
+    newXS("re::bootstrap", boot_re, file);
+    newXS("Digest::MD5::bootstrap", boot_Digest__MD5, file);
+    newXS("Digest::SHA::bootstrap", boot_Digest__SHA, file);
+    newXS("SDBM_File::bootstrap", boot_SDBM_File, file);
+    newXS("Math::BigInt::FastCalc::bootstrap", boot_Math__BigInt__FastCalc, file);
+    newXS("Data::Dumper::bootstrap", boot_Data__Dumper, file);
+    newXS("I18N::Langinfo::bootstrap", boot_I18N__Langinfo, file);
+    newXS("Time::Piece::bootstrap", boot_Time__Piece, file);
+    newXS("IO::bootstrap", boot_IO, file);
+    newXS("Hash::Util::FieldHash::bootstrap", boot_Hash__Util__FieldHash, file);
+    newXS("Hash::Util::bootstrap", boot_Hash__Util, file);
+    newXS("Filter::Util::Call::bootstrap", boot_Filter__Util__Call, file);
+    newXS("Encode::Unicode::bootstrap", boot_Encode__Unicode, file);
+    newXS("Encode::bootstrap", boot_Encode, file);
+    newXS("Encode::JP::bootstrap", boot_Encode__JP, file);
+    newXS("Encode::KR::bootstrap", boot_Encode__KR, file);
+    newXS("Encode::EBCDIC::bootstrap", boot_Encode__EBCDIC, file);
+    newXS("Encode::CN::bootstrap", boot_Encode__CN, file);
+    newXS("Encode::Symbol::bootstrap", boot_Encode__Symbol, file);
+    newXS("Encode::Byte::bootstrap", boot_Encode__Byte, file);
+    newXS("Encode::TW::bootstrap", boot_Encode__TW, file);
+    newXS("Compress::Raw::Zlib::bootstrap", boot_Compress__Raw__Zlib, file);
+    newXS("Compress::Raw::Bzip2::bootstrap", boot_Compress__Raw__Bzip2, file);
+    newXS("MIME::Base64::bootstrap", boot_MIME__Base64, file);
+    newXS("Cwd::bootstrap", boot_Cwd, file);
+    newXS("Storable::bootstrap", boot_Storable, file);
+    newXS("List::Util::bootstrap", boot_List__Util, file);
+    newXS("Fcntl::bootstrap", boot_Fcntl, file);
+    newXS("Opcode::bootstrap", boot_Opcode, file);
 }
