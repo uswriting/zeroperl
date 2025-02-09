@@ -372,6 +372,13 @@ jobs:
 
           node ${{ github.workspace }}/tools/delete.js  ${{ github.workspace }}/tools/delete.txt /zeroperl
 
+          PERLSTRIP_BIN="$(realpath ../native/prefix/bin)"
+          echo "Perlstrip bin path: $PERLSTRIP_BIN"
+          export PATH="$PERLSTRIP_BIN:$PATH"
+
+          echo "Stripping comments from .pl and .pm files in /zeroperl..."
+          find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \) -print0 | xargs -0 perlstrip -s
+
           mkdir  ${{ github.workspace }}/gen
 
           node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
