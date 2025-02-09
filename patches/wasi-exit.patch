@@ -1,0 +1,49 @@
+diff --git a/perl.c b/perl.c
+index 0f1872dd17..6f28ddd33e 100644
+--- a/perl.c
++++ b/perl.c
+@@ -3227,7 +3227,7 @@ Perl_call_sv(pTHX_ SV *sv, I32 arg_flags)
+             SET_CURSTASH(PL_defstash);
+             FREETMPS;
+             JMPENV_POP;
+-            my_exit_jump();
++            __wasi_proc_exit(STATUS_EXIT);
+             NOT_REACHED; /* NOTREACHED */
+         case 3:
+             if (PL_restartop) {
+@@ -3379,7 +3379,7 @@ Perl_eval_sv(pTHX_ SV *sv, I32 flags)
+         SET_CURSTASH(PL_defstash);
+         FREETMPS;
+         JMPENV_POP;
+-        my_exit_jump();
++        __wasi_proc_exit(STATUS_EXIT);
+         NOT_REACHED; /* NOTREACHED */
+     case 3:
+         if (PL_restartop) {
+@@ -5325,7 +5325,7 @@ Perl_call_list(pTHX_ I32 oldscope, AV *paramList)
+             PL_curcop = &PL_compiling;
+             CopLINE_set(PL_curcop, oldline);
+             JMPENV_POP;
+-            my_exit_jump();
++            __wasi_proc_exit(STATUS_EXIT);
+             NOT_REACHED; /* NOTREACHED */
+         case 3:
+             if (PL_restartop) {
+@@ -5372,7 +5372,7 @@ Perl_my_exit(pTHX_ U32 status)
+         STATUS_EXIT_SET(status);
+         break;
+     }
+-    my_exit_jump();
++    __wasi_proc_exit(status);
+ }
+ 
+ /*
+@@ -5479,7 +5479,7 @@ Perl_my_failure_exit(pTHX)
+         Perl_warn(aTHX_ "Unexpected exit failure %ld", (long)PL_statusvalue);
+         PL_exit_flags &= ~PERL_EXIT_ABORT;
+     }
+-    my_exit_jump();
++    __wasi_proc_exit(1);
+ }
+ 
+ STATIC void

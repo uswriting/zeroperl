@@ -1,0 +1,480 @@
+name: zeroperl
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-exiftool:
+        description: "Whether to build ExifTool"
+        required: false
+        default: "true"
+
+env:
+  URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
+  WASI_SDK_VERSION: 25.0
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Create /zeroperl directory
+        run: |
+          sudo mkdir -p /zeroperl
+          sudo chmod 777 /zeroperl
+
+      - name: Nuke default GitHub Actions Perl
+        run: |
+          echo "Default system perl is at: $(which perl)"
+          sudo rm -f "$(which perl)" || true
+          # Remove any GitHub toolcache-based Perl (if it exists)
+          if [ -d /opt/hostedtoolcache/Perl ]; then
+            sudo rm -rf /opt/hostedtoolcache/Perl
+          fi
+          echo "Perl removed. Checking perl availability..."
+          if command -v perl >/dev/null 2>&1; then
+            echo "Uh oh, there's still a perl at $(which perl)."
+          else
+            echo "No perl found."
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "23.7.0"
+
+      - name: Install Binaryen
+        run: |
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
+          tar -xzf binaryen.tar.gz
+          sudo cp binaryen-version_121/bin/* /opt/
+          rm -rf binaryen.tar.gz binaryen-version_121
+          echo "/opt" >> $GITHUB_PATH
+
+      - name: Test Binaryen Installation
+        run: wasm-opt --version
+
+      - name: Set up Clang
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: latest
+          platform: x64
+
+      - name: Setup `wasmtime`
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+
+      - name: Run `wasmtime version`
+        run: wasmtime --version
+
+      - name: Install WASI SDK
+        shell: bash
+        run: |
+          # Create directory for WASI SDK
+          sudo mkdir -p /opt/wasi-sdk
+          
+          # Set variables for WASI SDK installation
+          WASI_OS=linux
+          WASI_ARCH=x86_64
+          WASI_VERSION=25
+          WASI_VERSION_FULL=${WASI_VERSION}.0
+          
+          # Download and extract WASI SDK
+          cd /tmp
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-${WASI_ARCH}-${WASI_OS}.tar.gz
+          sudo tar xvf wasi-sdk-${WASI_VERSION_FULL}-${WASI_ARCH}-${WASI_OS}.tar.gz -C /opt/wasi-sdk --strip-components=1
+          
+          # Verify installation
+          ls -la /opt/wasi-sdk/bin
+          
+          # Make available in the current job
+          echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
+          echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Confirm clang version
+        shell: bash
+        run: |
+          clang --version || true
+          /opt/wasi-sdk/bin/clang --version || true
+
+      - name: Install Perl (native, static)
+        shell: bash
+        run: |
+          # We'll build a "native" perl in order to generate host tools that help cross-compile.
+          # This is not the final WASI build—just a standard local build for the host.
+          
+          mkdir native
+          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=native
+          cd native
+          
+          # Configure for a native static build (on Ubuntu). We keep dynamic loading disabled for simplicity.
+          sh +x ./Configure \
+            -sde \
+            -Dman1dir=none \
+            -Dman3dir=none \
+            -Dprefix="$PWD/prefix" \
+            -Dusedevel \
+            -Uversiononly \
+            -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" \
+            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+          make
+          make install
+
+      - name: Install App::cpanminus (native)
+        shell: bash
+        run: |
+          # Ensure we use the native Perl's cpan
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          # Install cpanminus into the native prefix
+          cpan App::cpanminus <<<yes
+
+      - name: Install Perl::Strip
+        shell: bash
+        run: |
+          # Still ensure we use the native prefix
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          cpanm Perl::Strip
+
+      - name: Test Perl::Strip CLI (native)
+        shell: bash
+        run: |
+          # Add the native Perl bin directory so we can find perlstrip
+          export PATH="$PWD/native/prefix/bin:$PATH"
+
+          # Confirm perlstrip is available
+          command -v perlstrip
+
+          # Create a small test Perl file with comments
+          cat <<'EOCODE' > testcode.pl
+          # This is a top-level comment
+          my $x = 1;  # Another comment
+          my $y = 2;  # More comments
+          print $x + $y, "\n";  # Will print 3
+          EOCODE
+
+          echo "===== Original Code ====="
+          cat testcode.pl
+
+          # Run perlstrip with the -s option, which strips comments in-place
+          perlstrip -s testcode.pl
+
+          echo "===== Stripped Code ====="
+          cat testcode.pl
+
+      - name: Install ExifTool and Dependencies (native)
+        if: ${{ github.event.inputs.build-exiftool == 'true' }}
+        shell: bash
+        run: |
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          curl -L https://www.exiftool.org/Image-ExifTool-13.11.tar.gz | tar -xzf -
+          cd Image-ExifTool-13.11
+          perl Makefile.PL
+          make
+          make test
+          ls "$PWD/../native/prefix"
+          make install PREFIX="$PWD/../native/prefix"
+
+      - name: Create WASI hint file
+        shell: bash
+        run: |
+          cat <<'EOF' > hintfile_wasi.sh
+
+            # fix bizarre preprocessor bug
+            d_perl_lc_all_category_positions_init='define'
+            d_perl_lc_all_separator='undef'
+            d_perl_lc_all_uses_name_value_pairs='undef'
+            perl_lc_all_category_positions_init='{ 0, 1, 5, 2, 3, 4 }'
+            perl_lc_all_separator=''
+            
+            usemymalloc="n"
+            usedevel="y"
+            usemultiplicity="undef"
+            usenm='undef'
+            usemallocwrap="define"
+            d_procselfexe='undef'
+            d_dlopen='undef'
+            # Disable wait-related features
+            d_wait='undef'
+            d_waitpid='undef'
+            d_wait3='undef'
+            d_wait4='undef'
+            i_syswait='undef' # This tells perl not to include sys/wait.h
+      
+            i_grp='define'
+            i_pwd='define'
+            d_getpwnam='undef'
+            d_getpwent='undef'
+            d_getpwuid='undef'
+            d_getspnam='undef'
+            d_getpwnam_r='undef'
+            d_getpwent_r='undef'
+            d_getpwuid_r='undef'
+            d_getprpwnam='undef'
+            d_setpwent='undef'
+            d_setpwent_r='undef'
+            d_getgrnam='undef'
+            d_getgrgid='undef'
+            d_getgrent='undef'
+            d_getgrnam_r='undef'
+            d_getgrgid_r='undef'
+            d_getgrent_r='undef'
+            d_setgrent='undef'
+            d_setgrent_r='undef'
+            d_endgrent='undef'
+            d_endgrent_r='undef'
+            d_getuid='undef'
+            d_geteuid='undef'
+            d_getgid='undef'
+            d_getegid='undef'
+        
+            uselargefiles='define'
+            use64bitint='define'
+            useperlio='define'
+            usequadmath='undef'
+            usethreads='undef'
+            use64bitall='define'
+
+            d_off64_t='define'
+            use_off64_t='define'
+            d_stat='define'
+            d_fstat='define'
+            d_lstat='define'
+            d_statblks='undef'
+            d_fstat64='define'
+            d_fdclose='undef'
+            d_dirnamlen='undef'
+            d_readdir64_r='define'
+
+            quadtype='long long'
+            uquadtype='unsigned long long'
+            quadkind='3'
+
+            d_setrgid='undef'
+            d_setruid='undef'
+            d_setproctitle='undef'
+            d_malloc_size='undef'
+            d_malloc_good_size='undef'
+
+            d_clearenv='undef'
+            d_cuserid='undef'
+            d_eaccess='undef'
+            d_getspnam='undef'
+            d_msgctl='undef'
+            d_msgget='undef'
+            d_msgrcv='undef'
+            d_msgsnd='undef'
+            d_semget='undef'
+            d_semop='undef'
+            d_shmat='undef'
+            d_shmctl='undef'
+            d_shmdt='undef'
+            d_shmget='undef'
+            d_syscall='undef'
+
+
+            d_killpg='undef'
+            d_pause='undef'
+
+            d_wait4='undef'
+            d_waitpid='undef'
+            d_vfork='undef'
+            d_pseudofork='undef'
+            i_pthread='undef'
+            d_pthread_atfork='undef'
+            d_pthread_attr_setscope='undef'
+            d_pthread_yield='undef'
+            
+            noextensions='Socket POSIX Time/HiRes'
+
+            ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
+            ccflags='$ccflags -DBIG_TIME -DNO_MATHOMS -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -DBIG_TIME -DNO_MATHOMS -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+          EOF
+
+      - name: Install Perl (WASI build)
+        shell: bash
+        run: |
+          WASI_BIN=$PWD/wasi-bin
+          chmod +x $WASI_BIN/wasic $WASI_BIN/wasimake $WASI_BIN/wasiconfigure
+          export WASI_SDK_PATH=/opt/wasi-sdk
+          export PATH="$WASI_BIN:$PATH"
+          
+          mkdir wasm
+          curl -L $URLPERL | tar -xzf - --strip-components=1 --directory=wasm
+          cp hintfile_wasi.sh wasm/hints/wasi.sh
+          cd wasm
+          chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
+          chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat.patch && chmod u-w ./pp_sys.c
+          chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
+
+          wasiconfigure sh ./Configure -sde \
+            -Dinc_version_list=none \
+            -Ddlsrc=none \
+            -Dloclibpth='' \
+            -Dglibpth='' \
+            -Dlns='/bin/ln' \
+            -Dman1dir=none \
+            -Dman3dir=none \
+            -Dosname="wasi" \
+            -Darchname="wasm32-wasi" \
+            -Dosvers="wasi${WASI_SDK_VERSION}" \
+            -Dmyhostname='objex.ai' \
+            -Dmydomain='objex.ai' \
+            -Dperladmin=root \
+            -Dcc="wasic" \
+            -Dld="wasic" \
+            -Dar="${WASI_SDK_PATH}/bin/llvm-ar" \
+            -Dranlib="${WASI_SDK_PATH}/bin/llvm-ranlib" \
+            -Doptimize="-O2" \
+            -Dlibs='-lm' \
+            -Dhintfile=wasi \
+            -Dhostperl="$PWD/../native/miniperl" \
+            -Dhostgenerate="$PWD/../native/generate_uudmap" \
+            -Dprefix="/zeroperl" \
+            -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
+            -Dusedevel \
+            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+
+          ln -s $PWD/pod/perldelta.pod .
+          ln $PWD/README.* ..
+
+          wasimake make utilities PERL="$PWD/../native/miniperl"
+          wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+
+          wasimake make install
+          echo "MAKED NOW LINK THIS BITCH"
+          cat perlmain.c || "No main"
+
+          rm -rf /zeroperl/bin
+          find /zeroperl -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
+
+          if [ "${{ github.event.inputs.build-exiftool }}" = "true" ]; then
+            cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
+            mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
+            cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
+          else
+            echo "Skipping ExifTool copy..."
+          fi
+
+          node ${{ github.workspace }}/tools/delete.js  ${{ github.workspace }}/tools/delete.txt /zeroperl
+
+          PERLSTRIP_BIN="$(realpath ../native/prefix/bin)"
+          echo "Perlstrip bin path: $PERLSTRIP_BIN"
+          export PATH="$PERLSTRIP_BIN:$PATH"
+
+          echo "Stripping comments from .pl and .pm files in /zeroperl..."
+          for f in $(find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \)); do
+            echo "Stripping $f..."
+            perlstrip -s "$f"
+          done
+
+          mkdir ${{ github.workspace }}/gen
+          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
+          cp ${{ github.workspace }}/stubs/zeroperl.c .
+
+          wasic \
+            -o zeroperl_unopt \
+            -flto=full \
+            -O3 \
+            -static \
+            -mllvm -wasm-enable-sjlj \
+            -lsetjmp \
+            -DNO_MATHOMS \
+            -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
+            -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
+            -D_GNU_SOURCE -D_POSIX_C_SOURCE \
+            -DBIG_TIME \
+            -Wno-implicit-function-declaration \
+            -Wno-null-pointer-arithmetic \
+            -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
+            -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
+            -lwasi-emulated-mman \
+            -I. \
+            -I ${{ github.workspace }}/stubs \
+            -I ${{ github.workspace }}/gen \
+            -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
+            -Wl,--strip-all \
+            -Wl,-mllvm,-wasm-enable-sjlj \
+            \
+            ${{ github.workspace }}/stubs/stubs.c \
+            ${{ github.workspace }}/gen/zeroperl_data.c \
+            zeroperl.c \
+            \
+            -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
+            -Wl,--wrap=fopen \
+            -Wl,--wrap=open \
+            -Wl,--wrap=close \
+            -Wl,--wrap=read \
+            -Wl,--wrap=lseek \
+            -Wl,--wrap=stat \
+            -Wl,--wrap=fstat \
+            lib/auto/mro/mro.a \
+            lib/auto/Devel/Peek/Peek.a \
+            lib/auto/File/DosGlob/DosGlob.a \
+            lib/auto/File/Glob/Glob.a \
+            lib/auto/Sys/Syslog/Syslog.a \
+            lib/auto/Sys/Hostname/Hostname.a \
+            lib/auto/PerlIO/via/via.a \
+            lib/auto/PerlIO/mmap/mmap.a \
+            lib/auto/PerlIO/encoding/encoding.a \
+            lib/auto/B/B.a \
+            lib/auto/attributes/attributes.a \
+            lib/auto/Unicode/Normalize/Normalize.a \
+            lib/auto/Unicode/Collate/Collate.a \
+            lib/auto/threads/threads.a \
+            lib/auto/threads/shared/shared.a \
+            lib/auto/IPC/SysV/SysV.a \
+            lib/auto/re/re.a \
+            lib/auto/Digest/MD5/MD5.a \
+            lib/auto/Digest/SHA/SHA.a \
+            lib/auto/SDBM_File/SDBM_File.a \
+            lib/auto/Math/BigInt/FastCalc/FastCalc.a \
+            lib/auto/Data/Dumper/Dumper.a \
+            lib/auto/I18N/Langinfo/Langinfo.a \
+            lib/auto/Time/Piece/Piece.a \
+            lib/auto/IO/IO.a \
+            lib/auto/Hash/Util/FieldHash/FieldHash.a \
+            lib/auto/Hash/Util/Util.a \
+            lib/auto/Filter/Util/Call/Call.a \
+            lib/auto/Encode/Unicode/Unicode.a \
+            lib/auto/Encode/Encode.a \
+            lib/auto/Encode/JP/JP.a \
+            lib/auto/Encode/KR/KR.a \
+            lib/auto/Encode/EBCDIC/EBCDIC.a \
+            lib/auto/Encode/CN/CN.a \
+            lib/auto/Encode/Symbol/Symbol.a \
+            lib/auto/Encode/Byte/Byte.a \
+            lib/auto/Encode/TW/TW.a \
+            lib/auto/Compress/Raw/Zlib/Zlib.a \
+            lib/auto/Compress/Raw/Bzip2/Bzip2.a \
+            lib/auto/MIME/Base64/Base64.a \
+            lib/auto/Cwd/Cwd.a \
+            lib/auto/Storable/Storable.a \
+            lib/auto/List/Util/Util.a \
+            lib/auto/Fcntl/Fcntl.a \
+            lib/auto/Opcode/Opcode.a \
+            `cat ext.libs` \
+            -lm \
+            -lwasi-emulated-signal \
+            -lwasi-emulated-getpid \
+            -lwasi-emulated-process-clocks \
+            -lwasi-emulated-mman \
+            -lsetjmp \
+            -v \
+            -ferror-limit=0
+
+          wasm-opt zeroperl_unopt --translate-to-exnref -all -o zeroperl.wasm
+
+      - name: Upload Prefix (WASI build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: perl-wasi-prefix
+          path: /zeroperl
+
+      - name: Upload Additional Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: |
+            wasm/config.h
+            wasm/zeroperl.wasm
+            wasm/zeroperl_unopt

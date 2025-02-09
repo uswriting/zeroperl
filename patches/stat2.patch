@@ -1,0 +1,22 @@
+diff --git a/pp_sys.c b/pp_sys.c
+index ed0ec79a73..bb91b40cee 100644
+--- a/pp_sys.c
++++ b/pp_sys.c
+@@ -3281,7 +3281,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+ #if Off_t_size > IVSIZE
+         mPUSHn(PL_statcache.st_size);
+ #else
+-        mPUSHi(PL_statcache.st_size);
++        mPUSHu(PL_statcache.st_size);
+ #endif
+ #ifdef BIG_TIME
+         mPUSHn(PL_statcache.st_atime);
+@@ -3538,7 +3538,7 @@ PP(pp_ftis)
+ #if Off_t_size > IVSIZE
+             sv_setnv(TARG, (NV)PL_statcache.st_size);
+ #else
+-            sv_setiv(TARG, (IV)PL_statcache.st_size);
++            sv_setuv(TARG, (UV)PL_statcache.st_size);
+ #endif
+             break;
+         case OP_FTMTIME:

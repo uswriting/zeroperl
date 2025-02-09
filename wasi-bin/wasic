@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+import os
+import sys
+import logging
+from subprocess import check_call, CalledProcessError
+
+# Configure logging
+logger = logging.getLogger('wasic')
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+def compile_with_wasi(args):
+    """
+    Compile source files for the WASI environment.
+    Strips 'cflags' and 'dflags' if encountered to avoid errors.
+    If the environment variable `WASIC_FORCE_HOST` is set, the compilation
+    will be redirected to the host compiler using the correct clang binary.
+    """
+    # Clean up arguments by removing unwanted flags
+    args = [arg for arg in args if arg not in {"cflags", "dflags"}]
+
+    # Check for the WASIC_FORCE_HOST environment variable
+    if os.getenv("WASIC_FORCE_HOST"):
+        logger.info("Environment variable WASIC_FORCE_HOST is set. Redirecting to host compiler.")
+        # Use the host clang explicitly
+        compile_with_host(args)
+        return
+
+    wasi_sdk_path = os.getenv('WASI_SDK_PATH', '/opt/wasi-sdk')
+    wasi_sysroot = os.path.join(wasi_sdk_path, 'share/wasi-sysroot')
+    compiler = 'clang++' if any(arg.endswith('.cpp') for arg in args) else 'clang'
+
+    cmd = [
+        os.path.join(wasi_sdk_path, 'bin', compiler),
+        f"--sysroot={wasi_sysroot}",
+        "--target=wasm32-wasi",
+        "-w"
+    ] + args
+
+    logger.info(f"Compiling with WASI: {' '.join(cmd)}")
+    try:
+        check_call(cmd)
+    except CalledProcessError as e:
+        logger.error(f"Compilation failed with error: {e}")
+        sys.exit(e.returncode)
+
+def compile_with_host(args):
+    """
+    Compile source files for the host environment using the correct clang binary.
+    """
+    compiler = '/usr/bin/clang++' if any(arg.endswith('.cpp') for arg in args) else '/usr/bin/clang'
+
+    cmd = [compiler] + args
+
+    logger.info(f"Compiling for the host with {compiler}: {' '.join(cmd)}")
+    try:
+        check_call(cmd)
+    except CalledProcessError as e:
+        logger.error(f"Host compilation failed with error: {e}")
+        sys.exit(e.returncode)
+
+def handle_try_file(test_file):
+    """
+    Handle the special case for `try.c`:
+    - Compile with WASI first to check compatibility.
+    - If WASI compilation succeeds, compile for the host.
+    - If WASI compilation fails, exit with a non-zero status.
+    """
+    logger.info(f"Handling special case for `{test_file}`")
+    try:
+        compile_with_wasi([test_file, "-o", "try"])
+        logger.info(f"`{test_file}` compiled successfully with WASI.")
+    except CalledProcessError:
+        logger.error(f"`{test_file}` cannot be compiled with WASI. Exiting.")
+        sys.exit(1)
+    # Compile with host if WASI succeeded
+    compile_with_host([test_file, "-o", "try"])
+
+def handle_compilation(args):
+    """
+    Determine if `try.c` needs special handling or compile with WASI normally.
+    """
+    if "try.c" in args:
+        handle_try_file("try.c")
+    else:
+        compile_with_wasi(args)
+
+def parse_args():
+    """
+    Parse command-line arguments.
+    """
+    if len(sys.argv) < 2:
+        logger.error("Usage: wasic [compiler flags and source files]")
+        sys.exit(1)
+    return sys.argv[1:]
+
+def main():
+    """
+    Main function to handle compilation logic.
+    """
+    args = parse_args()
+    handle_compilation(args)
+
+if __name__ == '__main__':
+    main()

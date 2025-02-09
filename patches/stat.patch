@@ -1,0 +1,85 @@
+diff --git a/pp_sys.c b/pp_sys.c
+index ed0ec79a73..94ddcdcde2 100644
+--- a/pp_sys.c
++++ b/pp_sys.c
+@@ -2277,7 +2277,7 @@ PP_wrapped(pp_syswrite, 0, 1)
+         if (MARK >= SP) {
+             length = blen;
+         } else {
+-#if Size_t_size > IVSIZE
++#if Size_t_size > IVSIZE || defined(__wasi__)
+             length = (Size_t)SvNVx(*++MARK);
+ #else
+             length = (Size_t)SvIVx(*++MARK);
+@@ -2323,7 +2323,7 @@ PP_wrapped(pp_syswrite, 0, 1)
+     SP = ORIGMARK;
+ 
+     Safefree(tmpbuf);
+-#if Size_t_size > IVSIZE
++#if Size_t_size > IVSIZE || defined(__wasi__)
+     PUSHn(retval);
+ #else
+     PUSHi(retval);
+@@ -2429,7 +2429,7 @@ PP_wrapped(pp_tell, MAXARG, 0)
+         RETURN;
+     }
+ 
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+     PUSHn( (NV)do_tell(gv) );
+ #else
+     PUSHi( (IV)do_tell(gv) );
+@@ -2444,7 +2444,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+ {
+     dSP;
+     const int whence = POPi;
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+     const Off_t offset = (Off_t)SvNVx(POPs);
+ #else
+     const Off_t offset = (Off_t)SvIVx(POPs);
+@@ -2456,7 +2456,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+     if (io) {
+         const MAGIC * const mg = SvTIED_mg((const SV *)io, PERL_MAGIC_tiedscalar);
+         if (mg) {
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+             SV *const offset_sv = newSVnv((NV) offset);
+ #else
+             SV *const offset_sv = newSViv(offset);
+@@ -2475,7 +2475,7 @@ PP_wrapped(pp_sysseek, 3, 0)
+             PUSHs(&PL_sv_undef);
+         else {
+             SV* const sv = sought ?
+-#if LSEEKSIZE > IVSIZE
++#if LSEEKSIZE > IVSIZE || defined(__wasi__)
+                 newSVnv((NV)sought)
+ #else
+                 newSViv(sought)
+@@ -2497,7 +2497,7 @@ PP_wrapped(pp_truncate, 2, 0)
+     /* XXX Configure probe for the length type of *truncate() needed XXX */
+     Off_t len;
+ 
+-#if Off_t_size > IVSIZE
++#if Off_t_size > IVSIZE || defined(__wasi__)
+     len = (Off_t)POPn;
+ #else
+     len = (Off_t)POPi;
+@@ -3278,7 +3278,7 @@ PP_wrapped(pp_stat, !(PL_op->op_flags & OPf_REF), 0)
+ #else
+         PUSHs(newSVpvs_flags("", SVs_TEMP));
+ #endif
+-#if Off_t_size > IVSIZE
++#if Off_t_size > IVSIZE || defined(__wasi__)
+         mPUSHn(PL_statcache.st_size);
+ #else
+         mPUSHi(PL_statcache.st_size);
+@@ -3535,7 +3535,7 @@ PP(pp_ftis)
+         dTARGET;
+         switch (op_type) {
+         case OP_FTSIZE:
+-#if Off_t_size > IVSIZE
++#if Off_t_size > IVSIZE || defined(__wasi__)
+             sv_setnv(TARG, (NV)PL_statcache.st_size);
+ #else
+             sv_setiv(TARG, (IV)PL_statcache.st_size);
