@@ -32,6 +32,11 @@ jobs:
             echo "No perl found."
           fi
 
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "23.7.0"
+
       - name: Install Binaryen
         run: |
           curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
@@ -315,7 +320,7 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          ../native/prefix/bin/perl ${{ github.workspace }}/tools/perlpack.pl -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
+          node ${{ github.workspace }}/tools/perlpack.js --ld  /opt/wasi-sdk/bin/wasm-ld -i ./prefix/ -o ${{ github.workspace }}/gen/perlpack.h -prefix /zeroperl
 
           wasic -c ${{ github.workspace }}/stubs/stubs.c -o stubs.o
 
