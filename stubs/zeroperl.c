@@ -16,6 +16,8 @@
 #include "zeroperl.h" /* Generated header: must define SFS_BUILTIN_PREFIX */
 
 extern char **environ;
+static void xs_init(pTHX);
+static PerlInterpreter *zero_perl;
 
 /* -------------------------------------------------------------------------
  * External declarations for the underlying ("real") functions.
@@ -524,28 +526,31 @@ int main(int argc, char *argv[])
     int exitstatus;
 
     PERL_SYS_INIT3(&argc, &argv, &environ);
+    PERL_SYS_FPU_INIT;
 
-    PerlInterpreter *myperl = perl_alloc();
-    if (myperl == NULL)
-        return -1;
+    zero_perl = perl_alloc();
+    if (!zero_perl)
+    {
+        return 1;
+    }
 
-    perl_construct(myperl);
+    perl_construct(zero_perl);
 
     /* Do minimal cleanup for WASI or other environments. */
+    PL_perl_destruct_level = 0;
     PL_exit_flags &= ~PERL_EXIT_DESTRUCT_END;
 
     exitstatus = 0;
-    if (!perl_parse(myperl, xs_init, argc, argv, (char **)NULL))
+    if (!perl_parse(zero_perl, xs_init, argc, argv, (char **)NULL))
     {
-        exitstatus = perl_run(myperl);
+        assert(!PL_restartop);
+        exitstatus = perl_run(zero_perl);
     }
 
-    PL_perl_destruct_level = 0;
-    exitstatus = perl_destruct(myperl);
-
-    perl_free(myperl);
+    // Perform minimal cleanup for WASI
+    perl_destruct(zero_perl);
+    perl_free(zero_perl);
     PERL_SYS_TERM();
-
     return exitstatus;
 }
 
