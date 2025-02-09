@@ -378,6 +378,10 @@ jobs:
 
           echo "Stripping comments from .pl and .pm files in /zeroperl..."
           for f in $(find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \)); do
+            if [ "$(basename "$f")" = "TagLookup.pm" ]; then
+              echo "Skipping $f"
+              continue
+            fi
             echo "Stripping $f..."
             perlstrip -s "$f"
           done
