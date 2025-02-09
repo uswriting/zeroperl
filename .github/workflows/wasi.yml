@@ -326,7 +326,7 @@ jobs:
 
           mkdir  ${{ github.workspace }}/gen
 
-          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeropearl.h --prefix /zeroperl
+          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
 
 
           cp ${{ github.workspace }}/stubs/zeroperl.c .
