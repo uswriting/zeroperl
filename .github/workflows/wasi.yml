@@ -18,7 +18,7 @@ jobs:
 
 
       - name: Create /zeroperl directory
-        run: mkdir -p /zeroperl
+        run: sudo mkdir -p /zeroperl
 
 
       - name: Nuke default GitHub Actions Perl
@@ -276,7 +276,7 @@ jobs:
           chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat.patch && chmod u-w ./pp_sys.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
    
-          wasiconfigure sh ./Configure -sde \
+          sudo wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
             -Dloclibpth='' \
@@ -305,9 +305,9 @@ jobs:
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
-          wasimake make utilities PERL="$PWD/../native/miniperl"
-          wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
-          wasimake make install
+          sudo wasimake make utilities PERL="$PWD/../native/miniperl"
+          sudo wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+          sudo wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           cat perlmain.c || "No main"
           # Final linking step
@@ -315,21 +315,21 @@ jobs:
           #find ./prefix
 
 
-          rm -rf /zeroperl/bin
-          find /zeroperl -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
-          mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
+          sudo rm -rf /zeroperl/bin
+          sudo find /zeroperl -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
+          sudo cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
+          sudo mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
+          sudo cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
           echo "TODO: further cleanup"
 
           mkdir  ${{ github.workspace }}/gen
 
-          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeropearl.h --prefix /zeroperl
+          sudo node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeropearl.h --prefix /zeroperl
 
 
           cp ${{ github.workspace }}/stubs/zeroperl.c .
 
-          wasic \
+          sudo wasic \
             -o zeroperl \
             -flto=full \
             -O3 \
