@@ -1,27 +1,29 @@
-name: perlwasi
+name: zeroperl
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      build-exiftool:
+        description: "Whether to build ExifTool"
+        required: false
+        default: "true"
 
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
   WASI_SDK_VERSION: 25.0
-  # Adjust WASI_SDK_VERSION if you want a different version. For reference:
-  # https://github.com/WebAssembly/wasi-sdk/releases
 
 jobs:
-  perlwasi:
+  build:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
-
       - name: Create /zeroperl directory
         run: |
           sudo mkdir -p /zeroperl
           sudo chmod 777 /zeroperl
-
 
       - name: Nuke default GitHub Actions Perl
         run: |
@@ -38,7 +40,6 @@ jobs:
             echo "No perl found."
           fi
 
-
       - uses: actions/setup-node@v4
         with:
           node-version: "23.7.0"
@@ -50,9 +51,9 @@ jobs:
           sudo cp binaryen-version_121/bin/* /opt/
           rm -rf binaryen.tar.gz binaryen-version_121
           echo "/opt" >> $GITHUB_PATH
+
       - name: Test Binaryen Installation
         run: wasm-opt --version
-
 
       - name: Set up Clang
         uses: egor-tensin/setup-clang@v1
@@ -64,7 +65,7 @@ jobs:
         uses: bytecodealliance/actions/wasmtime/setup@v1
 
       - name: Run `wasmtime version`
-        run: "wasmtime --version"
+        run: wasmtime --version
 
       - name: Install WASI SDK
         shell: bash
@@ -89,6 +90,7 @@ jobs:
           # Make available in the current job
           echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
           echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
+
       - name: Confirm clang version
         shell: bash
         run: |
@@ -106,29 +108,32 @@ jobs:
           cd native
           
           # Configure for a native static build (on Ubuntu). We keep dynamic loading disabled for simplicity.
-          sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
+          sh +x ./Configure \
+            -sde \
+            -Dman1dir=none \
+            -Dman3dir=none \
+            -Dprefix="$PWD/prefix" \
+            -Dusedevel \
+            -Uversiononly \
+            -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" \
+            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
           make
           make install
-        
-          
+
       - name: Install App::cpanminus (native)
         shell: bash
         run: |
           # Ensure we use the native Perl's cpan
           export PATH="$PWD/native/prefix/bin:$PATH"
-
           # Install cpanminus into the native prefix
           cpan App::cpanminus <<<yes
-
 
       - name: Install Perl::Strip
         shell: bash
         run: |
           # Still ensure we use the native prefix
           export PATH="$PWD/native/prefix/bin:$PATH"
-          
           cpanm Perl::Strip
-
 
       - name: Test Perl::Strip CLI (native)
         shell: bash
@@ -157,6 +162,7 @@ jobs:
           cat testcode.pl
 
       - name: Install ExifTool and Dependencies (native)
+        if: ${{ github.event.inputs.build-exiftool == 'true' }}
         shell: bash
         run: |
           export PATH="$PWD/native/prefix/bin:$PATH"
@@ -167,25 +173,19 @@ jobs:
           make test
           ls "$PWD/../native/prefix"
           make install PREFIX="$PWD/../native/prefix"
+
       - name: Create WASI hint file
         shell: bash
         run: |
           cat <<'EOF' > hintfile_wasi.sh
+
             # fix bizarre preprocessor bug
-            
             d_perl_lc_all_category_positions_init='define'
             d_perl_lc_all_separator='undef'
             d_perl_lc_all_uses_name_value_pairs='undef'
             perl_lc_all_category_positions_init='{ 0, 1, 5, 2, 3, 4 }'
             perl_lc_all_separator=''
             
-            #TODO: almost all of the known_extensions are still being built. we should probably exclude some of them! (see also nonxs_ext)
-            #noextensions='IPC/SysV'
-            # Here's a fun one: apparently, when building perlmini.c, emcc notices that it's a symlink to perl.c, and compiles to perl.o
-            # (because there is no -o option), so the final perl ends up thinking it's miniperl (shown in "perl -v", @INC doesn't work, etc.).
-            # Because of this and other issues I've had with symlinks, I'm switching to hard links instead.
-            # (Another possible fix might be to fix the Makefile steps so that they use the -o option, but this solution works for now.)
-            #TODO Later: In NODEFS, does Perl's -e test work correctly on symlinks? (./t/TEST was having issues detecting ./t/perl, a symlink to ./perl).
             usemymalloc="n"
             usedevel="y"
             usemultiplicity="undef"
@@ -198,13 +198,13 @@ jobs:
             d_waitpid='undef'
             d_wait3='undef'
             d_wait4='undef'
-            i_syswait='undef'    # This tells perl not to include sys/wait.h
+            i_syswait='undef' # This tells perl not to include sys/wait.h
       
             i_grp='define'
             i_pwd='define'
             d_getpwnam='undef'
             d_getpwent='undef'
-            d_getpwuid='undef' 
+            d_getpwuid='undef'
             d_getspnam='undef'
             d_getpwnam_r='undef'
             d_getpwent_r='undef'
@@ -249,18 +249,12 @@ jobs:
             uquadtype='unsigned long long'
             quadkind='3'
 
-
-            
             d_setrgid='undef'
             d_setruid='undef'
             d_setproctitle='undef'
             d_malloc_size='undef'
             d_malloc_good_size='undef'
-        
-            #d_prctl='define' # hm, it's present in the libc source, but Configure shows Emscripten error output? -> for now, assume it's not available
-            # It *looks* like shm*, sem* and a few others exist in Emscripten's libc,
-            # but I'm not sure why Configure isn't detecting them. But at the moment I'm not going
-            # to worry about them, and just not build IPC-SysV.
+
             d_clearenv='undef'
             d_cuserid='undef'
             d_eaccess='undef'
@@ -277,20 +271,10 @@ jobs:
             d_shmget='undef'
             d_syscall='undef'
 
-            
-            # Emscripten does not have signals support (documentation isn't 100% clear on this? but see "$EMSCRIPTEN/system/include/libc/setjmp.h")
-            # but if you do: grep -r 'Calling stub instead of' "$EMSCRIPTEN"
-            # you'll see the unsupported stuff (as of 1.37.35):
-            # signal() sigaction() sigprocmask() __libc_current_sigrtmin __libc_current_sigrtmax kill() killpg() siginterrupt() raise() pause()
-            # plus: "Calling longjmp() instead of siglongjmp()"
-            #d_sigaction='undef'
-            #d_sigprocmask='undef'
+
             d_killpg='undef'
             d_pause='undef'
-            #d_sigsetjmp='undef' # this also disables Perl's use of siglongjmp() (see config.h)
-            # the others either aren't used by Perl (like siginterrupt) or can't be Configure'd (like kill)
-            #TODO Later: currently I've disabled Perl's use of signal() by patching the source - maybe there's a better way?
-            # Emscripten doesn't actually have these either (see "$EMSCRIPTEN/src/library.js")
+
             d_wait4='undef'
             d_waitpid='undef'
             d_vfork='undef'
@@ -299,16 +283,14 @@ jobs:
             d_pthread_atfork='undef'
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
-            #TODO Later: The test for "selectminbits" seems to fail, the error appears to be coming from this line (because apparently stream.stream_ops is undefined): https://github.com/kripken/emscripten/blob/ddfc3e32f65/src/library_syscall.js#L750 For now, just use this number from a build with an earlier version where this didn't fail:
-            #selectminbits='32'
-            #alignbytes='4'
+            
             noextensions='Socket POSIX Time/HiRes'
-            # The WASI sysroot is typically set in the environment or through clang flags.
-            # The WASI sysroot is typically set in the environment or through clang flags.
+
             ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
             ccflags='$ccflags -DBIG_TIME -DNO_MATHOMS -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
             cppflags='-lm -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -DBIG_TIME -DNO_MATHOMS -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
+
       - name: Install Perl (WASI build)
         shell: bash
         run: |
@@ -324,7 +306,7 @@ jobs:
           chmod u+w ./ext/File-Glob/bsd_glob.c && patch ./ext/File-Glob/bsd_glob.c ${{ github.workspace }}/patches/glob.patch && chmod u-w ./ext/File-Glob/bsd_glob.c
           chmod u+w ./pp_sys.c && patch ./pp_sys.c ${{ github.workspace }}/patches/stat.patch && chmod u-w ./pp_sys.c
           chmod u+w ./Configure && patch ./Configure ${{ github.workspace }}/patches/Configure.patch && chmod u-w ./Configure
-   
+
           wasiconfigure sh ./Configure -sde \
             -Dinc_version_list=none \
             -Ddlsrc=none \
@@ -352,23 +334,27 @@ jobs:
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
             -Dusedevel \
             -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
+
           wasimake make utilities PERL="$PWD/../native/miniperl"
           wasimake make RUN_PERL="$PWD/../native/miniperl -Ilib -I."
+
           wasimake make install
           echo "MAKED NOW LINK THIS BITCH"
           cat perlmain.c || "No main"
-          # Final linking step
-          #find ./prefix -type f -executable -o -name '*.so' -name '*.a' -o -name '*.ld' -o -name '*.pod' -o -name '*.h' -delete
-          #find ./prefix
-
 
           rm -rf /zeroperl/bin
           find /zeroperl -type f \( -name "*.so" -o -name "*.a" -o -name "*.ld" -o -name "*.pod" -o -name "*.h" -o -executable \) -delete
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
-          mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
-          cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
+
+          if [ "${{ github.event.inputs.build-exiftool }}" = "true" ]; then
+            cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
+            mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
+            cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
+          else
+            echo "Skipping ExifTool copy..."
+          fi
 
           node ${{ github.workspace }}/tools/delete.js  ${{ github.workspace }}/tools/delete.txt /zeroperl
 
@@ -378,19 +364,12 @@ jobs:
 
           echo "Stripping comments from .pl and .pm files in /zeroperl..."
           for f in $(find /zeroperl -type f \( -name '*.pl' -o -name '*.pm' \)); do
-            #if [ "$(basename "$f")" = "TagLookup.pm" ]; then
-            #  echo "Skipping $f"
-            #  continue
-            #fi
             echo "Stripping $f..."
             perlstrip -s "$f"
           done
 
-          mkdir  ${{ github.workspace }}/gen
-
-          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o  ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
-
-
+          mkdir ${{ github.workspace }}/gen
+          node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
           cp ${{ github.workspace }}/stubs/zeroperl.c .
 
           wasic \
@@ -484,7 +463,7 @@ jobs:
             -v \
             -ferror-limit=0
 
-           wasm-opt zeroperl_unopt --translate-to-exnref -all -o zeroperl.wasm
+          wasm-opt zeroperl_unopt --translate-to-exnref -all -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
