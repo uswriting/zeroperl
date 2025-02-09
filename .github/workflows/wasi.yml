@@ -109,6 +109,50 @@ jobs:
           sh +x ./Configure -sde -Dman1dir=none -Dman3dir=none -Dprefix="$PWD/prefix" -Dusedevel -Uversiononly -Dlibs="-lpthread -ldl -lm -lutil -lc -lz" -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/HiRes Time/Piece IO Socket Hash/Util/FieldHash Hash/Util Filter/Util/Call POSIX Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode" #-Dextras="App::cpanminus"
           make
           make install
+
+      - name: Install Perl-Strip (native)
+        shell: bash
+        run: |
+          # Make sure we use the native Perl in PATH
+          export PATH="$PWD/native/prefix/bin:$PATH"
+          
+          # Download and extract
+          curl -L https://cpan.metacpan.org/authors/id/M/ML/MLEHMANN/Perl-Strip-1.2.tar.gz | tar -xzf -
+          cd Perl-Strip-1.2
+          
+          # Build & install to the same prefix as the native Perl
+          perl Makefile.PL
+          make
+          make test
+          make install PREFIX="$PWD/../native/prefix"
+
+
+      - name: Test Perl::Strip CLI (native)
+        shell: bash
+        run: |
+          # Add the native Perl bin directory so we can find perlstrip
+          export PATH="$PWD/native/prefix/bin:$PATH"
+
+          # Confirm perlstrip is available
+          command -v perlstrip
+
+          # Create a small test Perl file with comments
+          cat <<'EOCODE' > testcode.pl
+          # This is a top-level comment
+          my $x = 1;  # Another comment
+          my $y = 2;  # More comments
+          print $x + $y, "\n";  # Will print 3
+          EOCODE
+
+          echo "===== Original Code ====="
+          cat testcode.pl
+
+          # Run perlstrip with the -s option, which strips comments in-place
+          perlstrip -s testcode.pl
+
+          echo "===== Stripped Code ====="
+          cat testcode.pl
+
       - name: Install ExifTool and Dependencies (native)
         shell: bash
         run: |
@@ -322,7 +366,8 @@ jobs:
           cp -RT ../native/prefix/lib/site_perl/5.40.0/File/ /zeroperl/lib/5.40.0/wasm32-wasi/File/
           mkdir -p /zeroperl/lib/5.40.0/wasm32-wasi/Image
           cp -RT ../native/prefix/lib/site_perl/5.40.0/Image/ /zeroperl/lib/5.40.0/wasm32-wasi/Image/
-          echo "TODO: further cleanup"
+
+          node ${{ github.workspace }}/tools/delete.js  ${{ github.workspace }}/tools/delete.txt /zeroperl
 
           mkdir  ${{ github.workspace }}/gen
 
