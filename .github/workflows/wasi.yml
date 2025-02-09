@@ -332,7 +332,7 @@ jobs:
           cp ${{ github.workspace }}/stubs/zeroperl.c .
 
           wasic \
-            -o zeroperl \
+            -o zeroperl_unopt \
             -flto=full \
             -O3 \
             -static \
@@ -422,7 +422,7 @@ jobs:
             -v \
             -ferror-limit=0
 
-           wasm-opt perlwasi --translate-to-exnref -all -o zeroperl.wasm
+           wasm-opt zeroperl_unopt --translate-to-exnref -all -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
@@ -436,4 +436,4 @@ jobs:
           path: |
             wasm/config.h
             wasm/zeroperl.wasm
-            wasm/perlwasi
+            wasm/zeroperl_unopt
