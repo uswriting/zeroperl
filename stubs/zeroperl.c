@@ -12,17 +12,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-/* For WASI, we can include __wasi_libc.h or __wasi_api.h,
-   or forward-declare __wasi_proc_exit() if needed. */
-#ifdef __wasi__
-#include <wasi/api.h>
-#else
-/* If not compiling for WASI, define a no-op fallback. */
-static void __wasi_proc_exit(unsigned long code)
-{
-    exit((int)code);
-}
-#endif
+
 
 #include "EXTERN.h"
 #include "perl.h"
