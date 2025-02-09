@@ -1,22 +1,4 @@
-/**
- * @file miniperlmain.c
- * @brief A minimal Perl interpreter main program with a virtual filesystem hook.
- *
- * This file implements an embedded Perl interpreter (`miniperl` style)
- * that intercepts various I/O system calls (such as `open`, `read`, `stat`, etc.)
- * to optionally redirect them to an in-memory (virtual) filesystem. The virtual
- * filesystem is controlled by checking if the requested path begins with a
- * specific prefix defined by SFS_BUILTIN_PREFIX (from `zeropearl.h`). If so,
- * file access is redirected to the in-memory copies; otherwise, real system
- * calls are made.
- *
- * The code uses linker-based function wrapping on systems (particularly clang)
- * that support the -Wl,--wrap=foo option, and defines __wrap_* and __real_*
- * versions of each wrapped function.
- */
-
 #define PERL_IN_MINIPERLMAIN_C
-#define PERL_CORE 1
 
 #include <stdio.h>
 #include <locale.h>
