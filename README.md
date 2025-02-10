@@ -1,3 +1,3 @@
-Builds Perl into a wasi-wasm32 module.
+zeroperl is an experimental build of Perl5 in a sandboxed, self-contained WebAssembly module.
 
-Will eventually open source, will be a fun tech blog.
+Read the full blog [here](https://open.substack.com/pub/andrews/p/zeroperl-sandboxed-perl-with-webassembly?r=44njw&utm_campaign=post&utm_medium=web&showWelcomeOnShare=false)
