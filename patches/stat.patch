@@ -1,3 +1,16 @@
+diff --git a/perl.h b/perl.h
+index 9788654975..c4decdbd2e 100644
+--- a/perl.h
++++ b/perl.h
+@@ -1368,7 +1368,7 @@ typedef enum {
+ 
+ #endif
+ 
+-#include <setjmp.h>
++#include "setjmp.h"
+ 
+ #ifdef I_SYS_PARAM
+ #   ifdef PARAM_NEEDS_TYPES
 diff --git a/pp_sys.c b/pp_sys.c
 index ed0ec79a73..94ddcdcde2 100644
 --- a/pp_sys.c
