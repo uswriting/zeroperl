@@ -11,20 +11,19 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdbool.h>
-
+#include "setjmp.h"
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-
 #include "zeroperl.h" /* Must define SFS_BUILTIN_PREFIX, e.g. "builtin:" */
 
-extern char **environ;
+/* Forward declaration for the XS init function. */
 static void xs_init(pTHX);
 static PerlInterpreter *zero_perl;
 
 /* -------------------------------------------------------------------------
- * External declarations for the underlying ("real") functions.
- * We expect these symbols to be resolved at link time via linker wrapping.
+ * External declarations for the underlying ("real") syscalls (wrapped).
+ * We expect these symbols to be resolved via linker wrap.
  * ------------------------------------------------------------------------- */
 extern FILE *__real_fopen(const char *path, const char *mode);
 extern int __real_fileno(FILE *stream);
@@ -225,9 +224,7 @@ static int sfs_open(const char *path, FILE **outfp)
     {
         errno = ENOENT; /* not found in SFS */
         if (outfp)
-        {
             *outfp = NULL;
-        }
         return -1;
     }
 
@@ -236,9 +233,7 @@ static int sfs_open(const char *path, FILE **outfp)
     if (!fp)
     {
         if (outfp)
-        {
             *outfp = NULL;
-        }
         return -1;
     }
 
@@ -253,9 +248,7 @@ static int sfs_open(const char *path, FILE **outfp)
             sfs_table[i].fp = fp;
             sfs_table[i].size = size;
             if (outfp)
-            {
                 *outfp = fp;
-            }
             return newfd;
         }
     }
@@ -264,9 +257,7 @@ static int sfs_open(const char *path, FILE **outfp)
     fclose(fp);
     errno = EMFILE;
     if (outfp)
-    {
         *outfp = NULL;
-    }
     return -1;
 }
 
@@ -353,7 +344,7 @@ static int sfs_access(const char *path)
  * Returns:
  *   SFS_STAT_OURS     => we filled stbuf
  *   SFS_STAT_NOT_OURS => not ours => fallback
- *   SFS_STAT_ERR      => ours, but not found/error => no fallback
+ *   SFS_STAT_ERR      => SFS path but not found/error => no fallback
  * ------------------------------------------------------------------------- */
 static SFS_Stat_Result sfs_stat(const char *path, int fd, struct stat *stbuf)
 {
@@ -481,7 +472,7 @@ int __wrap_close(int fd)
         return __real_close(fd);
     }
     /* Otherwise => rc == SFS_ERR => pass the error up. */
-    return (int)rc; /* -1 or something, but we store -2 as well. Up to you. */
+    return (int)rc; /* -1 or something, but we store -2 as well. */
 }
 
 /* __wrap_access */
@@ -572,11 +563,8 @@ int __wrap_fileno(FILE *stream)
     }
     return realfd; /* might be negative if real fileno fails. */
 }
-
-/* -------------------------------------------------------------------------
- * Minimal main() for embedded Perl
- * ------------------------------------------------------------------------- */
-int main(int argc, char *argv[])
+// real
+int real_pmain(int argc, char *argv[])
 {
     int exitstatus;
 
@@ -608,15 +596,18 @@ int main(int argc, char *argv[])
     return exitstatus;
 }
 
+int main(int argc, char **argv)
+{
+    return asyncjmp_rt_start(real_pmain, argc, argv);
+}
+
 /* -------------------------------------------------------------------------
  * XS bootstrap table. (Adjust as your Perl config requires.)
  * ------------------------------------------------------------------------- */
 EXTERN_C void boot_DynaLoader(pTHX_ CV *cv);
 EXTERN_C void boot_mro(pTHX_ CV *cv);
-EXTERN_C void boot_Devel__Peek(pTHX_ CV *cv);
 EXTERN_C void boot_File__DosGlob(pTHX_ CV *cv);
 EXTERN_C void boot_File__Glob(pTHX_ CV *cv);
-EXTERN_C void boot_Sys__Syslog(pTHX_ CV *cv);
 EXTERN_C void boot_Sys__Hostname(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__via(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__mmap(pTHX_ CV *cv);
@@ -666,10 +657,8 @@ static void xs_init(pTHX)
 
     newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
     newXS("mro::bootstrap", boot_mro, file);
-    newXS("Devel::Peek::bootstrap", boot_Devel__Peek, file);
     newXS("File::DosGlob::bootstrap", boot_File__DosGlob, file);
     newXS("File::Glob::bootstrap", boot_File__Glob, file);
-    newXS("Sys::Syslog::bootstrap", boot_Sys__Syslog, file);
     newXS("Sys::Hostname::bootstrap", boot_Sys__Hostname, file);
     newXS("PerlIO::via::bootstrap", boot_PerlIO__via, file);
     newXS("PerlIO::mmap::bootstrap", boot_PerlIO__mmap, file);

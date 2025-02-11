@@ -8,6 +8,7 @@
         "*.scss.liquid": "liquid-scss",
         "stdlib.h": "c",
         "__locale": "c",
-        "ios": "c"
+        "ios": "c",
+        "unistd.h": "c"
     }
 }

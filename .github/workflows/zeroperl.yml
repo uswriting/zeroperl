@@ -91,6 +91,13 @@ jobs:
           echo "WASI_SDK_PATH=/opt/wasi-sdk" >> $GITHUB_ENV
           echo "PATH=/opt/wasi-sdk/bin:$PATH" >> $GITHUB_ENV
 
+      - name: Remove system setjmp
+        shell: bash
+        run: |
+          echo "Removing setjmp.h from WASI sysroot..."
+          sudo find /opt/wasi-sdk/share/wasi-sysroot/ -name "setjmp.h" -exec rm -fv {} \;
+          echo "Done removing any system setjmp."
+
       - name: Confirm clang version
         shell: bash
         run: |
@@ -187,7 +194,7 @@ jobs:
             perl_lc_all_separator=''
             
             usemymalloc="n"
-            usedevel="y"
+            usedevel="n"
             usemultiplicity="undef"
             usenm='undef'
             usemallocwrap="define"
@@ -284,11 +291,11 @@ jobs:
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
             
-            noextensions='Socket POSIX Time/HiRes'
+            noextensions='Socket POSIX Time/HiRes Devel/Peek Sys/Syslog'
 
-            ldflags='-static -mllvm -wasm-enable-sjlj -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
-            ccflags='$ccflags -DBIG_TIME -DNO_MATHOMS -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
-            cppflags='-lm -mllvm -wasm-enable-sjlj -Wno-implicit-function-declaration -DBIG_TIME -DNO_MATHOMS -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            ldflags='-static -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
+            ccflags='$ccflags -DBIG_TIME -DNO_MATHOMS -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
+            cppflags='-lm -Wno-implicit-function-declaration -DBIG_TIME -DNO_MATHOMS -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
           EOF
 
       - name: Install Perl (WASI build)
@@ -318,6 +325,7 @@ jobs:
             -Dosname="wasi" \
             -Darchname="wasm32-wasi" \
             -Dosvers="wasi${WASI_SDK_VERSION}" \
+            -Dmyuname="objex.ai" \
             -Dmyhostname='objex.ai' \
             -Dmydomain='objex.ai' \
             -Dperladmin=root \
@@ -326,14 +334,14 @@ jobs:
             -Dar="${WASI_SDK_PATH}/bin/llvm-ar" \
             -Dranlib="${WASI_SDK_PATH}/bin/llvm-ranlib" \
             -Doptimize="-O2" \
+            -Dusedevel \
             -Dlibs='-lm' \
             -Dhintfile=wasi \
             -Dhostperl="$PWD/../native/miniperl" \
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="/zeroperl" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
-            -Dusedevel \
-            -Dstatic_ext="mro Devel/Peek File/DosGlob File/Glob Sys/Syslog Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+            -Dstatic_ext="mro File/DosGlob File/Glob Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
 
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
@@ -372,13 +380,25 @@ jobs:
           node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
           cp ${{ github.workspace }}/stubs/zeroperl.c .
 
+          current_dir=$(pwd)
+
+          cd ${{ github.workspace }}/stubs
+          wasic -O3 -c machine.c -o machine.o
+          wasic -O3 -c runtime.c -o runtime.o
+          wasic -O3 -c setjmp.c -o setjmp.o
+          wasic -O3 -c machine_core.S -o machine_core.o
+          wasic -O3 -c setjmp_core.S -o setjmp_core.o
+          "${WASI_SDK_PATH}/bin/llvm-ar" crs libasyncjmp.a \
+          machine.o runtime.o setjmp.o \
+          machine_core.o setjmp_core.o
+          cd $current_dir
+
+
           wasic \
             -o zeroperl_unopt \
             -flto=full \
             -O3 \
             -static \
-            -mllvm -wasm-enable-sjlj \
-            -lsetjmp \
             -DNO_MATHOMS \
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
             -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
@@ -386,6 +406,8 @@ jobs:
             -DBIG_TIME \
             -Wno-implicit-function-declaration \
             -Wno-null-pointer-arithmetic \
+            -Wno-incomplete-setjmp-declaration \
+            -Wno-incompatible-library-redeclaration \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
             -lwasi-emulated-mman \
@@ -394,12 +416,13 @@ jobs:
             -I ${{ github.workspace }}/gen \
             -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
             -Wl,--strip-all \
-            -Wl,-mllvm,-wasm-enable-sjlj \
+            -Wl,--allow-undefined \
             \
             ${{ github.workspace }}/stubs/stubs.c \
             ${{ github.workspace }}/gen/zeroperl_data.c \
             zeroperl.c \
             \
+            -Wl,--whole-archive ${{ github.workspace }}/stubs/libasyncjmp.a -Wl,--no-whole-archive \
             -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
             -Wl,--wrap=fopen \
             -Wl,--wrap=open \
@@ -409,10 +432,8 @@ jobs:
             -Wl,--wrap=stat \
             -Wl,--wrap=fstat \
             lib/auto/mro/mro.a \
-            lib/auto/Devel/Peek/Peek.a \
             lib/auto/File/DosGlob/DosGlob.a \
             lib/auto/File/Glob/Glob.a \
-            lib/auto/Sys/Syslog/Syslog.a \
             lib/auto/Sys/Hostname/Hostname.a \
             lib/auto/PerlIO/via/via.a \
             lib/auto/PerlIO/mmap/mmap.a \
@@ -459,11 +480,10 @@ jobs:
             -lwasi-emulated-getpid \
             -lwasi-emulated-process-clocks \
             -lwasi-emulated-mman \
-            -lsetjmp \
             -v \
             -ferror-limit=0
 
-          wasm-opt zeroperl_unopt --translate-to-exnref -all -o zeroperl.wasm
+          wasm-opt zeroperl_unopt -O3 --strip-dwarf --enable-bulk-memory --asyncify -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
