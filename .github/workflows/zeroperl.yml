@@ -334,6 +334,7 @@ jobs:
             -Dar="${WASI_SDK_PATH}/bin/llvm-ar" \
             -Dranlib="${WASI_SDK_PATH}/bin/llvm-ranlib" \
             -Doptimize="-O2" \
+            -Dusedevel \
             -Dlibs='-lm' \
             -Dhintfile=wasi \
             -Dhostperl="$PWD/../native/miniperl" \

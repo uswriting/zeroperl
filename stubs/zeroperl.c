@@ -606,10 +606,8 @@ int main(int argc, char **argv)
  * ------------------------------------------------------------------------- */
 EXTERN_C void boot_DynaLoader(pTHX_ CV *cv);
 EXTERN_C void boot_mro(pTHX_ CV *cv);
-EXTERN_C void boot_Devel__Peek(pTHX_ CV *cv);
 EXTERN_C void boot_File__DosGlob(pTHX_ CV *cv);
 EXTERN_C void boot_File__Glob(pTHX_ CV *cv);
-EXTERN_C void boot_Sys__Syslog(pTHX_ CV *cv);
 EXTERN_C void boot_Sys__Hostname(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__via(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__mmap(pTHX_ CV *cv);
@@ -659,10 +657,8 @@ static void xs_init(pTHX)
 
     newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
     newXS("mro::bootstrap", boot_mro, file);
-    newXS("Devel::Peek::bootstrap", boot_Devel__Peek, file);
     newXS("File::DosGlob::bootstrap", boot_File__DosGlob, file);
     newXS("File::Glob::bootstrap", boot_File__Glob, file);
-    newXS("Sys::Syslog::bootstrap", boot_Sys__Syslog, file);
     newXS("Sys::Hostname::bootstrap", boot_Sys__Hostname, file);
     newXS("PerlIO::via::bootstrap", boot_PerlIO__via, file);
     newXS("PerlIO::mmap::bootstrap", boot_PerlIO__mmap, file);
