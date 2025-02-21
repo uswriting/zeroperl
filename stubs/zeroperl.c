@@ -12,10 +12,43 @@
 #include <assert.h>
 #include <stdbool.h>
 #include "setjmp.h"
+#include "asyncify.h"
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
 #include "zeroperl.h" /* Must define SFS_BUILTIN_PREFIX, e.g. "builtin:" */
+
+#define STRINGIZE_HELPER(x) #x
+#define STRINGIZE(x) STRINGIZE_HELPER(x)
+#include <wasi/api.h>
+
+/* 
+ * Writes the given string literal directly to STDERR via __wasi_fd_write,
+ * avoiding calls to printf or other asyncified C library functions.
+ */
+#define DEBUG_LOG_INTERNAL(msg)                                          \
+    do {                                                                 \
+        const uint8_t *msg_start = (const uint8_t *) (msg);             \
+        const uint8_t *msg_end   = msg_start;                           \
+        while (*msg_end != '\0') {                                      \
+            msg_end++;                                                 \
+        }                                                               \
+        __wasi_ciovec_t iov = {                                         \
+            .buf = msg_start,                                          \
+            .buf_len = (size_t)(msg_end - msg_start)                    \
+        };                                                              \
+        size_t nwritten;                                                \
+        __wasi_fd_write(STDERR_FILENO, &iov, 1, &nwritten);             \
+    } while (0)
+
+/*
+ * Appends file name + line number information, then calls DEBUG_LOG_INTERNAL.
+ * Example use: DEBUG_LOG("Some debug message");
+ */
+#define DEBUG_LOG(msg) \
+    DEBUG_LOG_INTERNAL(__FILE__ ":" STRINGIZE(__LINE__) ": " msg "\n")
+
+
 
 /* Forward declaration for the XS init function. */
 static void xs_init(pTHX);
@@ -29,7 +62,7 @@ extern FILE *__real_fopen(const char *path, const char *mode);
 extern int __real_fileno(FILE *stream);
 extern int __real_open(const char *path, int flags, ...);
 extern int __real_close(int fd);
-extern ssize_t __real_read(int fd, void *buf, size_t count);
+__attribute__((import_module("wasi_snapshot_preview1"), import_name("fd_read"))) extern ssize_t __real_read(int fd, void *buf, size_t count);
 extern off_t __real_lseek(int fd, off_t offset, int whence);
 extern int __real_access(const char *path, int flags);
 extern int __real_stat(const char *restrict path, struct stat *restrict statbuf);
@@ -188,7 +221,7 @@ static int sfs_allocate_fd(void)
             return fd;
         }
     }
-    /* No free FD => forcibly exit. (Or handle error differently if you prefer.) */
+    /* No free FD => forcibly exit. */
     __wasi_proc_exit(10);
     /* not reached */
     return -1;
@@ -289,7 +322,7 @@ static SFS_Result sfs_close(int fd)
 /* -------------------------------------------------------------------------
  * sfs_read: read from in-memory data if FD is ours, else return -1.
  * ------------------------------------------------------------------------- */
-static ssize_t sfs_read(int fd, void *buf, size_t count)
+__attribute__((noinline)) static ssize_t sfs_read(int fd, void *buf, size_t count)
 {
     SFS_Entry *e = sfs_find_by_fd(fd);
     if (!e || !e->fp)
@@ -520,15 +553,32 @@ int __wrap_fstat(int fd, struct stat *stbuf)
 }
 
 /* __wrap_read */
+__attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count)
 {
+    // 1) Optional in‑memory “fast path”
     ssize_t r = sfs_read(fd, buf, count);
-    if (r >= 0)
-    {
-        return r; /* SFS success */
+    if (r >= 0) {
+        return r;
     }
-    /* fallback => real read. */
-    return __real_read(fd, buf, count);
+
+    // 2) Otherwise, loop in case __real_read triggers an async unwind.
+    while (1) {
+
+        ssize_t real_val = __real_read(fd, buf, count);
+
+        // See if we unwound:
+        void *unwind_buf = asyncjmp_handle_jmp_unwind();
+        if (unwind_buf != NULL) {
+            // If we did unwind (i.e. a Promise in JS),
+            // start the rewind, then retry.
+            asyncify_start_rewind(unwind_buf);
+            continue;
+        }
+
+        // If no unwind, we have our final read result.
+        return real_val;
+    }
 }
 
 /* __wrap_lseek */
@@ -605,24 +655,18 @@ int main(int argc, char **argv)
  * XS bootstrap table. (Adjust as your Perl config requires.)
  * ------------------------------------------------------------------------- */
 EXTERN_C void boot_DynaLoader(pTHX_ CV *cv);
-EXTERN_C void boot_mro(pTHX_ CV *cv);
 EXTERN_C void boot_File__DosGlob(pTHX_ CV *cv);
 EXTERN_C void boot_File__Glob(pTHX_ CV *cv);
 EXTERN_C void boot_Sys__Hostname(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__via(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__mmap(pTHX_ CV *cv);
 EXTERN_C void boot_PerlIO__encoding(pTHX_ CV *cv);
-EXTERN_C void boot_B(pTHX_ CV *cv);
 EXTERN_C void boot_attributes(pTHX_ CV *cv);
 EXTERN_C void boot_Unicode__Normalize(pTHX_ CV *cv);
 EXTERN_C void boot_Unicode__Collate(pTHX_ CV *cv);
-EXTERN_C void boot_threads(pTHX_ CV *cv);
-EXTERN_C void boot_threads__shared(pTHX_ CV *cv);
-EXTERN_C void boot_IPC__SysV(pTHX_ CV *cv);
 EXTERN_C void boot_re(pTHX_ CV *cv);
 EXTERN_C void boot_Digest__MD5(pTHX_ CV *cv);
 EXTERN_C void boot_Digest__SHA(pTHX_ CV *cv);
-EXTERN_C void boot_SDBM_File(pTHX_ CV *cv);
 EXTERN_C void boot_Math__BigInt__FastCalc(pTHX_ CV *cv);
 EXTERN_C void boot_Data__Dumper(pTHX_ CV *cv);
 EXTERN_C void boot_I18N__Langinfo(pTHX_ CV *cv);
@@ -644,7 +688,6 @@ EXTERN_C void boot_Compress__Raw__Zlib(pTHX_ CV *cv);
 EXTERN_C void boot_Compress__Raw__Bzip2(pTHX_ CV *cv);
 EXTERN_C void boot_MIME__Base64(pTHX_ CV *cv);
 EXTERN_C void boot_Cwd(pTHX_ CV *cv);
-EXTERN_C void boot_Storable(pTHX_ CV *cv);
 EXTERN_C void boot_List__Util(pTHX_ CV *cv);
 EXTERN_C void boot_Fcntl(pTHX_ CV *cv);
 EXTERN_C void boot_Opcode(pTHX_ CV *cv);
@@ -656,24 +699,18 @@ static void xs_init(pTHX)
     PERL_UNUSED_CONTEXT;
 
     newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
-    newXS("mro::bootstrap", boot_mro, file);
     newXS("File::DosGlob::bootstrap", boot_File__DosGlob, file);
     newXS("File::Glob::bootstrap", boot_File__Glob, file);
     newXS("Sys::Hostname::bootstrap", boot_Sys__Hostname, file);
     newXS("PerlIO::via::bootstrap", boot_PerlIO__via, file);
     newXS("PerlIO::mmap::bootstrap", boot_PerlIO__mmap, file);
     newXS("PerlIO::encoding::bootstrap", boot_PerlIO__encoding, file);
-    newXS("B::bootstrap", boot_B, file);
     newXS("attributes::bootstrap", boot_attributes, file);
     newXS("Unicode::Normalize::bootstrap", boot_Unicode__Normalize, file);
     newXS("Unicode::Collate::bootstrap", boot_Unicode__Collate, file);
-    newXS("threads::bootstrap", boot_threads, file);
-    newXS("threads::shared::bootstrap", boot_threads__shared, file);
-    newXS("IPC::SysV::bootstrap", boot_IPC__SysV, file);
     newXS("re::bootstrap", boot_re, file);
     newXS("Digest::MD5::bootstrap", boot_Digest__MD5, file);
     newXS("Digest::SHA::bootstrap", boot_Digest__SHA, file);
-    newXS("SDBM_File::bootstrap", boot_SDBM_File, file);
     newXS("Math::BigInt::FastCalc::bootstrap", boot_Math__BigInt__FastCalc, file);
     newXS("Data::Dumper::bootstrap", boot_Data__Dumper, file);
     newXS("I18N::Langinfo::bootstrap", boot_I18N__Langinfo, file);
@@ -695,7 +732,6 @@ static void xs_init(pTHX)
     newXS("Compress::Raw::Bzip2::bootstrap", boot_Compress__Raw__Bzip2, file);
     newXS("MIME::Base64::bootstrap", boot_MIME__Base64, file);
     newXS("Cwd::bootstrap", boot_Cwd, file);
-    newXS("Storable::bootstrap", boot_Storable, file);
     newXS("List::Util::bootstrap", boot_List__Util, file);
     newXS("Fcntl::bootstrap", boot_Fcntl, file);
     newXS("Opcode::bootstrap", boot_Opcode, file);
