@@ -76,9 +76,17 @@ enum asyncjmp_jmp_buf_state
 
 void async_buf_init(struct __asyncjmp_asyncify_jmp_buf *buf)
 {
-    buf->top = &buf->buffer[0];
-    buf->end = &buf->buffer[WASM_SETJMP_STACK_BUFFER_SIZE];
+    char *buffer = malloc(WASM_SETJMP_STACK_BUFFER_SIZE);
+    buf->top = buffer;
+    buf->end = buffer + WASM_SETJMP_STACK_BUFFER_SIZE;
 }
+
+inline static void
+async_buf_deinit(struct __rb_wasm_asyncify_jmp_buf* buf)
+{
+    free(buf->top);
+}
+
 
 // Global unwinding/rewinding jmpbuf state
 static asyncjmp_jmp_buf *_asyncjmp_active_jmpbuf;
@@ -113,6 +121,8 @@ __attribute__((noinline)) int _asyncjmp_setjmp_internal(asyncjmp_jmp_buf *env)
         asyncify_stop_rewind();
         ASYNCJMP_DEBUG_LOG("  JMP_BUF_STATE_RETURNING");
         env->state = JMP_BUF_STATE_CAPTURED;
+        async_buf_deinit(&env->longjmp_buf);
+        async_buf_deinit(&env->setjmp_buf);
         free(env->longjmp_buf_ptr);
         _asyncjmp_active_jmpbuf = NULL;
         return env->payload;
