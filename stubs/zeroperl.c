@@ -552,33 +552,45 @@ int __wrap_fstat(int fd, struct stat *stbuf)
     return __real_fstat(fd, stbuf);
 }
 
+static bool have_saved_result = false;
+static ssize_t saved_result   = -1;
+
 /* __wrap_read */
 __attribute__((noinline))
-ssize_t __wrap_read(int fd, void *buf, size_t count)
-{
-    // 1) Optional in‑memory “fast path”
+ssize_t __wrap_read(int fd, void *buf, size_t count) {
+    // ------------------------------------------------
+    // 1) If we are in the middle of a REWIND, skip the read call.
+    //    We just restore our saved result and return.
+    // ------------------------------------------------
+    if (asyncify_get_state() == 2) {
+        asyncify_stop_rewind();
+        if (have_saved_result) {
+            have_saved_result = false; 
+            return saved_result;
+        }
+        return -1;
+    }
+
     ssize_t r = sfs_read(fd, buf, count);
     if (r >= 0) {
-        return r;
+        return r; // Fast path succeeded
     }
+    
+    
+    ssize_t real_val = __real_read(fd, buf, count);
 
-    // 2) Otherwise, loop in case __real_read triggers an async unwind.
-    while (1) {
+        if (asyncify_get_state() == 1) {
+            saved_result     = real_val;
+            have_saved_result = true;
 
-        ssize_t real_val = __real_read(fd, buf, count);
+            asyncify_stop_unwind();
 
-        // See if we unwound:
-        void *unwind_buf = asyncjmp_handle_jmp_unwind();
-        if (unwind_buf != NULL) {
-            // If we did unwind (i.e. a Promise in JS),
-            // start the rewind, then retry.
-            asyncify_start_rewind(unwind_buf);
-            continue;
+            return real_val;
         }
 
-        // If no unwind, we have our final read result.
+
         return real_val;
-    }
+
 }
 
 /* __wrap_lseek */
