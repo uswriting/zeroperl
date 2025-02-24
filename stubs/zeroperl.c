@@ -576,14 +576,10 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
         return r;
     }
     
-    
-    
      DEBUG_LOG("real c");
-     asyncify_start_unwind(16);
-
      r = __real_read(fd, buf, count);
      DEBUG_LOG("back from real c");
-
+    
      return r;
     
 }
