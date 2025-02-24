@@ -563,31 +563,32 @@ static ssize_t async_read_result;
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-
     ssize_t r;
-    
-    if (asyncify_get_state() == 2) {
-        asyncify_stop_rewind();
-        return async_read_result; 
+
+    while (1) { // Introduce a while loop
+        if (asyncify_get_state() == Rewinding) {
+            asyncify_stop_rewind();
+            return async_read_result; // Return the stored result
+        }
+
+        r = sfs_read(fd, buf, count);
+        if (r >= 0) {
+            return r;
+        }
+
+        asyncify_start_unwind(16); // Start unwinding at DATA_ADDR
+
+        r = __real_read(fd, buf, count); // Call the async function
+
+        if (asyncify_get_state() == Unwinding) {
+            asyncify_stop_unwind();
+            continue; // Continue the loop instead of recursion
+        }
+
+        async_read_result = r; // Store the result in the static variable
+        asyncify_start_rewind(16); // Start rewinding at DATA_ADDR
+        return async_read_result; // Return the stored result
     }
-
-    r = sfs_read(fd, buf, count);
-    if (r >= 0) {
-        return r;
-    }
-
-    asyncify_start_unwind(16); // Start unwinding at DATA_ADDR
-
-    r = __real_read(fd, buf, count);
-
-    if (asyncify_get_state() == 1) {
-        asyncify_stop_unwind();
-        return __wrap_read(fd, buf, count); // Restart the function
-    }
-
-     async_read_result = r; // Store the result in the static variable
-    asyncify_start_rewind(16); // Start rewinding at DATA_ADDR
-    return async_read_result; // Return the stored result
 }
 
 /* __wrap_lseek */
