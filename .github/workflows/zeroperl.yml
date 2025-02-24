@@ -435,6 +435,7 @@ jobs:
             -Wno-null-pointer-arithmetic \
             -Wno-incomplete-setjmp-declaration \
             -Wno-incompatible-library-redeclaration \
+            -Wno-int-conversion \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
             -lwasi-emulated-mman \
