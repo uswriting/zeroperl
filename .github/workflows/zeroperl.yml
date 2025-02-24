@@ -57,7 +57,9 @@ jobs:
           echo "/opt" >> $GITHUB_PATH
 
       - name: Test Binaryen Installation
-        run: wasm-opt --version
+        run: |
+          which wasm-opt
+          wasm-opt --version
 
       - name: Set up Clang
         uses: egor-tensin/setup-clang@v1
@@ -481,8 +483,9 @@ jobs:
             -lwasi-emulated-mman \
             -v \
             -ferror-limit=0
-
-          wasm-opt zeroperl_unopt -O3 --strip-dwarf --enable-bulk-memory --asyncify --pass-arg=asyncify-imports@wasi_snapshot_preview1.fd_read -o zeroperl.wasm
+            
+          which wasm-opt
+          wasm-opt zeroperl_unopt -O2 --strip-dwarf --enable-bulk-memory --asyncify --pass-arg=asyncify-imports@wasi_snapshot_preview1.fd_read -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
