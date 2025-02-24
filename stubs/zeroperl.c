@@ -425,6 +425,7 @@ static SFS_Stat_Result sfs_stat(const char *path, int fd, struct stat *stbuf)
  * ========================================================================= */
 
 /* __wrap_fopen */
+__attribute__((noinline))
 FILE *__wrap_fopen(const char *path, const char *mode)
 {
     if (sfs_has_prefix(path))
@@ -455,6 +456,7 @@ FILE *__wrap_fopen(const char *path, const char *mode)
 }
 
 /* __wrap_open */
+__attribute__((noinline))
 int __wrap_open(const char *path, int flags, ...)
 {
     va_list args;
@@ -488,6 +490,7 @@ int __wrap_open(const char *path, int flags, ...)
 }
 
 /* __wrap_close */
+__attribute__((noinline))
 int __wrap_close(int fd)
 {
     SFS_Result rc = sfs_close(fd);
@@ -509,6 +512,7 @@ int __wrap_close(int fd)
 }
 
 /* __wrap_access */
+__attribute__((noinline))
 int __wrap_access(const char *path, int amode)
 {
     /* If prefix => try SFS. */
@@ -521,6 +525,7 @@ int __wrap_access(const char *path, int amode)
 }
 
 /* __wrap_stat */
+__attribute__((noinline))
 int __wrap_stat(const char *restrict path, struct stat *restrict stbuf)
 {
     SFS_Stat_Result rc = sfs_stat(path, -1, stbuf);
@@ -537,6 +542,7 @@ int __wrap_stat(const char *restrict path, struct stat *restrict stbuf)
 }
 
 /* __wrap_fstat */
+__attribute__((noinline))
 int __wrap_fstat(int fd, struct stat *stbuf)
 {
     SFS_Stat_Result rc = sfs_stat(NULL, fd, stbuf);
@@ -582,6 +588,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
 }
 
 /* __wrap_lseek */
+__attribute__((noinline))
 off_t __wrap_lseek(int fd, off_t offset, int whence)
 {
     off_t pos = sfs_lseek(fd, offset, whence);
@@ -594,6 +601,7 @@ off_t __wrap_lseek(int fd, off_t offset, int whence)
 }
 
 /* __wrap_fileno */
+__attribute__((noinline))
 int __wrap_fileno(FILE *stream)
 {
     /* 1) Check SFS first: see if this FILE* is one of ours. */
