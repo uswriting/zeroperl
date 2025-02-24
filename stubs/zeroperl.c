@@ -552,37 +552,52 @@ int __wrap_fstat(int fd, struct stat *stbuf)
     return __real_fstat(fd, stbuf);
 }
 
-static bool    have_saved_result = false;
-static ssize_t saved_result      = -1;
+#define DATA_ADDR 16
+#define DATA_START (DATA_ADDR + 8)
 
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
- 
     int st = asyncify_get_state();
-   if (st == 2) {
-       DEBUG_LOG("rewinding c");
-   } else if (st == 1) {
-       DEBUG_LOG("unwinding c");
-    } else if (st == 0) {
-         DEBUG_LOG("none state c");
-   } else {
-         DEBUG_LOG("unknown state");
-   }
 
-     ssize_t r = sfs_read(fd, buf, count);
-     if (r >= 0) {
-        // SFS was successful, just return
-        return r;
+    if (st == 2) { // Rewinding
+        DEBUG_LOG("rewinding c");
+        ssize_t* result_ptr = (ssize_t*)(DATA_START);
+        ssize_t result = *result_ptr;
+         DEBUG_LOG("Rewinding: Returning stored result: %ld", result);
+        return result;
+    } else if (st == 1) { // Unwinding
+        DEBUG_LOG("unwinding c");
+        DEBUG_LOG("Error: Unwinding state during __wrap_read");
+        abort(); // Or some other error handling
+    } else if (st == 0) { // None state
+        DEBUG_LOG("none state c");
+        // This is the initial call.
+        ssize_t r = sfs_read(fd, buf, size_t count);
+        if (r >= 0) {
+            // SFS was successful, just return
+            return r;
+        }
+
+        DEBUG_LOG("real c");
+
+        // Store arguments in a known place in memory for later use during rewind
+        int* fd_ptr = (int*)DATA_START;
+        *fd_ptr = fd;
+
+        size_t* count_ptr = (size_t*)(DATA_START + sizeof(int));
+        *count_ptr = count;
+      
+        asyncify_start_unwind(DATA_ADDR);
+        return -9999; 
+
+    } else {
+        DEBUG_LOG("unknown state");
+        // Handle unexpected states (should not happen).
+        abort(); // Or other error handling
     }
-    
-     DEBUG_LOG("real c");
-     r = __real_read(fd, buf, count);
-     DEBUG_LOG("back from real c");
-    
-     return r;
-    
 }
+
 
 /* __wrap_lseek */
 off_t __wrap_lseek(int fd, off_t offset, int whence)
