@@ -552,45 +552,33 @@ int __wrap_fstat(int fd, struct stat *stbuf)
     return __real_fstat(fd, stbuf);
 }
 
-static bool have_saved_result = false;
-static ssize_t saved_result   = -1;
+static bool    have_saved_result = false;
+static ssize_t saved_result      = -1;
 
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-    // ------------------------------------------------
-    // 1) If we are in the middle of a REWIND, skip the read call.
-    //    We just restore our saved result and return.
-    // ------------------------------------------------
-    if (asyncify_get_state() == 2) {
-        asyncify_stop_rewind();
-        if (have_saved_result) {
-            have_saved_result = false; 
-            return saved_result;
-        }
-        return -1;
+   int st = asyncify_get_state();
+   if (st == 2) {
+       ssize_t ret = saved_result;
+       have_saved_result = false;
+       saved_result      = -1;
+       return ret;
+   }
+     if (st == 1) {
+        return saved_result;
     }
 
-    ssize_t r = sfs_read(fd, buf, count);
-    if (r >= 0) {
-        return r; // Fast path succeeded
+     ssize_t r = sfs_read(fd, buf, count);
+     if (r >= 0) {
+        // SFS was successful, just return
+        return r;
     }
-    
-    
-    ssize_t real_val = __real_read(fd, buf, count);
 
-        if (asyncify_get_state() == 1) {
-            saved_result     = real_val;
-            have_saved_result = true;
-
-            asyncify_stop_unwind();
-
-            return real_val;
-        }
-
-
-        return real_val;
-
+     r = __real_read(fd, buf, count);
+     have_saved_result = true;
+    saved_result      = r;
+     return r;
 }
 
 /* __wrap_lseek */
