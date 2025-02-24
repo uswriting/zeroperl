@@ -71,10 +71,13 @@ jobs:
             git submodule update
             patch ./src/passes/Asyncify.cpp $GITHUB_WORKSPACE/patches/asyncify.patch
             cmake . && make
-            sudo cp ./bin/* /opt/
-            echo "/opt" >> $GITHUB_PATH
 
-      - name: Test Binaryen Installation
+      - name: Install Binaryen
+        run: |
+          sudo cp binaryen/bin/* /opt/
+          echo "/opt" >> $GITHUB_PATH
+
+      - name: Install Binaryen
         run: |
           which wasm-opt
           wasm-opt --version
