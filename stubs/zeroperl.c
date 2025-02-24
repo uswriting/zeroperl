@@ -564,7 +564,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
         DEBUG_LOG("rewinding c");
         ssize_t* result_ptr = (ssize_t*)(DATA_START);
         ssize_t result = *result_ptr;
-         DEBUG_LOG("Rewinding: Returning stored result: %ld", result);
+         DEBUG_LOG("Rewinding: Returning stored result");
         return result;
     } else if (st == 1) { // Unwinding
         DEBUG_LOG("unwinding c");
