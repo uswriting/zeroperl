@@ -573,11 +573,11 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
     } else if (st == 0) { // None state
         DEBUG_LOG("none state c");
         // This is the initial call.
-        ssize_t r = sfs_read(fd, buf, size_t count);
-        if (r >= 0) {
-            // SFS was successful, just return
-            return r;
-        }
+        ssize_t r = sfs_read(fd, buf, count);
+    if (r >= 0)
+    {
+        return r; /* SFS success */
+    }
 
         DEBUG_LOG("real c");
 
