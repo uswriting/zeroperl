@@ -23,8 +23,7 @@ __attribute__((import_module("asyncify"), import_name("start_rewind"))) void asy
 
 __attribute__((import_module("asyncify"), import_name("stop_rewind"))) void asyncify_stop_rewind(void);
 
-__attribute__((import_module("asyncify"), import_name("get_state"))) int asyncify_get_state(void);
-
-#define asyncify_get_state() asyncify_get_state()
+__attribute__((import_module("asyncify"), import_name("get_state")))
+int asyncify_get_state(void);
 
 #endif
