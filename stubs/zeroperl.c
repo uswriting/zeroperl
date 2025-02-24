@@ -558,15 +558,17 @@ static ssize_t saved_result      = -1;
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-    while (1) {
+ 
         int st = asyncify_get_state();
    if (st == 2) {
+       DEBUG_LOG("rewinding c");
        ssize_t ret = saved_result;
        have_saved_result = false;
        saved_result      = -1;
        return ret;
    }
      if (st == 1) {
+         DEBUG_LOG("unwinding c");
         return saved_result;
     }
 
@@ -577,10 +579,18 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
     }
 
      r = __real_read(fd, buf, count);
-     have_saved_result = true;
+
+    have_saved_result = true;
     saved_result      = r;
+
+     if (asyncify_get_state() == 1) {
+          DEBUG_LOG("unwinding after real c");
+         return r;
+     }
+        
+
      return r;
-    }
+    
    
 }
 
