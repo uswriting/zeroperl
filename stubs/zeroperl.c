@@ -558,14 +558,17 @@ int __wrap_fstat(int fd, struct stat *stbuf)
     return __real_fstat(fd, stbuf);
 }
 
+static ssize_t async_read_result; 
+
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-    ssize_t r;
 
+    ssize_t r;
+    
     if (asyncify_get_state() == 2) {
         asyncify_stop_rewind();
-        return *((ssize_t *)buf); // Retrieve the result from the buffer
+        return async_read_result; 
     }
 
     r = sfs_read(fd, buf, count);
@@ -575,16 +578,16 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
 
     asyncify_start_unwind(16); // Start unwinding at DATA_ADDR
 
-    r = __real_read(fd, buf, count); // Call the async function
+    r = __real_read(fd, buf, count);
 
     if (asyncify_get_state() == 1) {
         asyncify_stop_unwind();
         return __wrap_read(fd, buf, count); // Restart the function
     }
 
-    *((ssize_t *)buf) = r; // Store the result in the buffer for rewinding.
+     async_read_result = r; // Store the result in the static variable
     asyncify_start_rewind(16); // Start rewinding at DATA_ADDR
-    return r; // This return value is not used, since the actual result will be returned after rewinding.
+    return async_read_result; // Return the stored result
 }
 
 /* __wrap_lseek */
