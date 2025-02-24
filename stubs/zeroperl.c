@@ -560,21 +560,21 @@ __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
      int state = asyncify_get_state();
     if (state == 2) { 
-         LOG_DEBUG("rewinding from c");
+         DEBUG_LOG("rewinding from c");
         double* result_ptr = (double*)(DATA_START);
         ssize_t result = (ssize_t)(*result_ptr);
         return result;
     } else if (state == 1) {
-         LOG_DEBUG("unwinding unexpected");
+         DEBUG_LOG("unwinding unexpected");
         abort();
     } else if (state == 0) {
         ssize_t r = sfs_read(fd, buf, count);
         if (r >= 0) {
             return r; 
         }
-        LOG_DEBUG("calling unwind from c");
+        DEBUG_LOG("calling unwind from c");
         asyncify_start_unwind(DATA_ADDR);
-         LOG_DEBUG("calling __real_read");
+         DEBUG_LOG("calling __real_read");
         return __real_read(fd, buf, count); 
     } else {
         abort(); 
