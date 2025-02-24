@@ -58,7 +58,9 @@ jobs:
         id: cache-binaryen
         uses: actions/cache@v4
         with:
-          path: binaryen/bin
+          path: |
+            binaryen/bin
+            binaryen/lib
           key: ${{ runner.os }}-binaryen
 
       - name: Build Patched Binaryen
@@ -75,6 +77,8 @@ jobs:
       - name: Install Binaryen
         run: |
           sudo cp binaryen/bin/* /opt/
+          sudo cp binaryen/lib/* /usr/local/lib
+          sudo ldconfig
           echo "/opt" >> $GITHUB_PATH
 
       - name: Install Binaryen
