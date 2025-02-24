@@ -566,7 +566,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
     ssize_t r;
 
     while (1) { // Introduce a while loop
-        if (asyncify_get_state() == Rewinding) {
+        if (asyncify_get_state() == 2) {
             asyncify_stop_rewind();
             return async_read_result; // Return the stored result
         }
@@ -580,7 +580,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
 
         r = __real_read(fd, buf, count); // Call the async function
 
-        if (asyncify_get_state() == Unwinding) {
+        if (asyncify_get_state() == 1) {
             asyncify_stop_unwind();
             continue; // Continue the loop instead of recursion
         }
