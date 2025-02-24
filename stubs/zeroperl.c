@@ -564,7 +564,11 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
        DEBUG_LOG("rewinding c");
    } else if (st == 1) {
        DEBUG_LOG("unwinding c");
-    }
+    } else if (st == 0) {
+         DEBUG_LOG("none state c");
+   } else {
+         DEBUG_LOG("unknown state");
+   }
 
      ssize_t r = sfs_read(fd, buf, count);
      if (r >= 0) {
