@@ -409,11 +409,11 @@ jobs:
           current_dir=$(pwd)
 
           cd ${{ github.workspace }}/stubs
-          wasic -O3 -c machine.c -o machine.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c runtime.c -o runtime.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c setjmp.c -o setjmp.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c machine_core.S -o machine_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c setjmp_core.S -o setjmp_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -O3 -c machine.c -o machine.o -DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -O3 -c runtime.c -o runtime.o -DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -O3 -c setjmp.c -o setjmp.o -DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -O3 -c machine_core.S -o machine_core.o -DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -O3 -c setjmp_core.S -o setjmp_core.o -DASYNCJMP_ENABLE_DEBUG_LOG
           "${WASI_SDK_PATH}/bin/llvm-ar" crs libasyncjmp.a \
           machine.o runtime.o setjmp.o \
           machine_core.o setjmp_core.o
