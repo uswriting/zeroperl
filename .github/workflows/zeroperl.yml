@@ -70,7 +70,7 @@ jobs:
             git submodule init
             git submodule update
             patch ./src/passes/Asyncify.cpp $GITHUB_WORKSPACE/patches/asyncify.patch
-            cmake . && make -j2
+            cmake . && make -j4
 
       - name: Install Binaryen
         run: |
