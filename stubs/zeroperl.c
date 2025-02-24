@@ -558,7 +558,8 @@ static ssize_t saved_result      = -1;
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-   int st = asyncify_get_state();
+    while (1) {
+        int st = asyncify_get_state();
    if (st == 2) {
        ssize_t ret = saved_result;
        have_saved_result = false;
@@ -579,6 +580,8 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
      have_saved_result = true;
     saved_result      = r;
      return r;
+    }
+   
 }
 
 /* __wrap_lseek */
