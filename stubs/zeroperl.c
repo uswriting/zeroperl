@@ -567,15 +567,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
     if (sfr >= 0) {
         return sfr; // Return immediately if successful
     }
-
-    // Start unwinding to handle the async operation
-    asyncify_start_unwind(16);
-    
-    // Call the async function (the real read)
-    ssize_t r = __real_read(fd, buf, count);
-    
-    // When we return here after rewinding, just continue execution
-    return r;
+    return __real_read(fd, buf, count);
 }
 
 /* __wrap_lseek */
