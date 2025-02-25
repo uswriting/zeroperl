@@ -576,7 +576,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
     if (state == 0) {
         asyncify_start_unwind(ASYNCIFY_DATA_ADDR);
         ssize_t result = __real_read(fd, buf, count);
-        __builtin_unreachable()
+        __builtin_unreachable();
     }
     else if (state == 2) {
         // Rewinding state (second call)
@@ -587,7 +587,7 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
         // Return the result
         return result;
     }
-    __builtin_unreachable()
+    __builtin_unreachable();
 }
 
 /* __wrap_lseek */
