@@ -559,15 +559,31 @@ int __wrap_fstat(int fd, struct stat *stbuf)
 }
 
 
+
+#define ASYNCIFY_DATA_ADDR ((void*)16)
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-    // Try the synchronous filesystem read first
+
     ssize_t sfr = sfs_read(fd, buf, count);
     if (sfr >= 0) {
         return sfr; // Return immediately if successful
     }
-    return __real_read(fd, buf, count);
+    
+    // If we're not already unwinding or rewinding, start unwinding
+    if (asyncify_get_state() == 0) { // Normal state
+        // Start unwinding the stack at this function
+        asyncify_start_unwind(ASYNCIFY_DATA_ADDR);
+    }
+    
+    ssize_t result = __real_read(fd, buf, count);
+    
+    // If we're in rewinding state, stop rewinding
+    if (asyncify_get_state() == 2) { // Rewinding state
+        asyncify_stop_rewind();
+    }
+    
+    return result;
 }
 
 /* __wrap_lseek */
