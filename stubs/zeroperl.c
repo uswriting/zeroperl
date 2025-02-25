@@ -558,18 +558,24 @@ int __wrap_fstat(int fd, struct stat *stbuf)
     return __real_fstat(fd, stbuf);
 }
 
-static ssize_t async_read_result; 
 
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
+    // Try the synchronous filesystem read first
     ssize_t sfr = sfs_read(fd, buf, count);
-        if (sfr >= 0) {
-            return sfr;
-        }
- ssize_t r = __real_read(fd, buf, count); // Call the async function
+    if (sfr >= 0) {
+        return sfr; // Return immediately if successful
+    }
+
+    // Start unwinding to handle the async operation
+    asyncify_start_unwind(16);
+    
+    // Call the async function (the real read)
+    ssize_t r = __real_read(fd, buf, count);
+    
+    // When we return here after rewinding, just continue execution
     return r;
- 
 }
 
 /* __wrap_lseek */
