@@ -564,26 +564,30 @@ int __wrap_fstat(int fd, struct stat *stbuf)
 /* __wrap_read */
 __attribute__((noinline))
 ssize_t __wrap_read(int fd, void *buf, size_t count) {
-
+    // Try the synchronous filesystem read first
     ssize_t sfr = sfs_read(fd, buf, count);
     if (sfr >= 0) {
         return sfr; // Return immediately if successful
     }
     
-    // If we're not already unwinding or rewinding, start unwinding
-    if (asyncify_get_state() == 0) { // Normal state
-        // Start unwinding the stack at this function
+    // Get the current asyncify state
+    int state = asyncify_get_state();
+    
+    if (state == 0) {
         asyncify_start_unwind(ASYNCIFY_DATA_ADDR);
+        ssize_t result = __real_read(fd, buf, count);
+        __builtin_unreachable()
     }
-    
-    ssize_t result = __real_read(fd, buf, count);
-    
-    // If we're in rewinding state, stop rewinding
-    if (asyncify_get_state() == 2) { // Rewinding state
+    else if (state == 2) {
+        // Rewinding state (second call)
+        // Call __real_read to get cached result from JS
+        ssize_t result = __real_read(fd, buf, count);
+        // Stop rewinding to resume normal execution
         asyncify_stop_rewind();
+        // Return the result
+        return result;
     }
-    
-    return result;
+    __builtin_unreachable()
 }
 
 /* __wrap_lseek */
