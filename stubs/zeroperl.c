@@ -570,23 +570,27 @@ ssize_t __wrap_read(int fd, void *buf, size_t count) {
         return sfr; // Return immediately if successful
     }
     
-    // Get the current asyncify state
-    int state = asyncify_get_state();
+    // The key pattern for asyncify: use a while(1) loop to handle all states
+    while (1) {
+         int state = asyncify_get_state();
+        
+        if (state == 0) { // Normal state - first call
+            // Start unwinding process
+            asyncify_start_unwind(ASYNCIFY_DATA_ADDR);
+            __builtin_unreachable();
+        }
+        else if (state == 2) { // Rewinding state - second call
+            // During rewinding, call __real_read to get cached result from JS
+            ssize_t result = __real_read(fd, buf, count);
+            
+            // Stop rewinding to resume normal execution
+            asyncify_stop_rewind();
+            
+            // Return the actual result
+            return result;
+        }
+    }
     
-    if (state == 0) {
-        asyncify_start_unwind(ASYNCIFY_DATA_ADDR);
-        ssize_t result = __real_read(fd, buf, count);
-        __builtin_unreachable();
-    }
-    else if (state == 2) {
-        // Rewinding state (second call)
-        // Call __real_read to get cached result from JS
-        ssize_t result = __real_read(fd, buf, count);
-        // Stop rewinding to resume normal execution
-        asyncify_stop_rewind();
-        // Return the result
-        return result;
-    }
     __builtin_unreachable();
 }
 
