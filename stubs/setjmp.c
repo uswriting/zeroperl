@@ -82,7 +82,7 @@ void async_buf_init(struct __asyncjmp_asyncify_jmp_buf *buf)
 
 // Global unwinding/rewinding jmpbuf state
 static asyncjmp_jmp_buf *_asyncjmp_active_jmpbuf;
-void *_asyncify_unwind_buf;
+void *pl_asyncify_unwind_buf;
 
 __attribute__((noinline)) int _asyncjmp_setjmp_internal(asyncjmp_jmp_buf *env)
 {
@@ -130,7 +130,10 @@ void _asyncjmp_longjmp(asyncjmp_jmp_buf *env, int value)
     assert(value != 0);
     env->state = JMP_BUF_STATE_RETURNING;
     env->payload = value;
-    env->longjmp_buf_ptr = malloc(sizeof(struct __asyncjmp_asyncify_jmp_buf));
+    // Asyncify buffer built during unwinding for longjmp will not
+    // be used to rewind, so re-use static-variable.
+    static struct __asyncjmp_asyncify_jmp_buf tmp_longjmp_buf;
+    env->longjmp_buf_ptr = &tmp_longjmp_buf;
     _asyncjmp_active_jmpbuf = env;
     async_buf_init(env->longjmp_buf_ptr);
     asyncify_start_unwind(env->longjmp_buf_ptr);
@@ -157,7 +160,7 @@ void asyncjmp_try_catch_init(struct asyncjmp_try_catch *try_catch,
 void asyncjmp_try_catch_loop_run(struct asyncjmp_try_catch *try_catch,
                                  asyncjmp_jmp_buf *target)
 {
-    extern void *rb_asyncify_unwind_buf;
+    extern void *pl_asyncify_unwind_buf;
     extern asyncjmp_jmp_buf *_asyncjmp_active_jmpbuf;
 
     target->state = JMP_BUF_STATE_CAPTURED;
@@ -179,7 +182,7 @@ void asyncjmp_try_catch_loop_run(struct asyncjmp_try_catch *try_catch,
 
     {
         // catch longjmp with target jmp_buf
-        while (rb_asyncify_unwind_buf && _asyncjmp_active_jmpbuf == target)
+        while (pl_asyncify_unwind_buf && _asyncjmp_active_jmpbuf == target)
         {
             // do similar steps setjmp does when JMP_BUF_STATE_RETURNING
 

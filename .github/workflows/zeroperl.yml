@@ -7,6 +7,10 @@ on:
         description: "Whether to build ExifTool"
         required: false
         default: "true"
+      trim:
+        description: "trim the prefix"
+        required: false
+        default: "true"
 
 env:
   URLPERL: https://www.cpan.org/src/5.0/perl-5.40.0.tar.gz
@@ -44,22 +48,43 @@ jobs:
         with:
           node-version: "23.7.0"
 
-      - name: Install Binaryen
-        run: |
-          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
-          tar -xzf binaryen.tar.gz
-          sudo cp binaryen-version_121/bin/* /opt/
-          rm -rf binaryen.tar.gz binaryen-version_121
-          echo "/opt" >> $GITHUB_PATH
-
-      - name: Test Binaryen Installation
-        run: wasm-opt --version
-
       - name: Set up Clang
         uses: egor-tensin/setup-clang@v1
         with:
           version: latest
           platform: x64
+
+      - name: Cache Binaryen Source and Build
+        id: cache-binaryen
+        uses: actions/cache@v4
+        with:
+          path: |
+            binaryen/bin
+            binaryen/lib
+          key: ${{ runner.os }}-binaryen
+
+      - name: Build Patched Binaryen
+        if: steps.cache-binaryen.outputs.cache-hit != 'true'
+        run: |
+            git clone https://github.com/WebAssembly/binaryen.git
+            cd binaryen
+            git checkout version_122
+            git submodule init
+            git submodule update
+            patch ./src/passes/Asyncify.cpp $GITHUB_WORKSPACE/patches/asyncify.patch
+            cmake . && make -j4
+
+      - name: Install Binaryen
+        run: |
+          sudo cp binaryen/bin/* /opt/
+          sudo cp binaryen/lib/* /usr/local/lib
+          sudo ldconfig
+          echo "/opt" >> $GITHUB_PATH
+
+      - name: Install Binaryen
+        run: |
+          which wasm-opt
+          wasm-opt --version
 
       - name: Setup `wasmtime`
         uses: bytecodealliance/actions/wasmtime/setup@v1
@@ -291,7 +316,7 @@ jobs:
             d_pthread_attr_setscope='undef'
             d_pthread_yield='undef'
             
-            noextensions='Socket POSIX Time/HiRes Devel/Peek Sys/Syslog'
+            noextensions='Socket POSIX Time/HiRes Devel/Peek Sys/Syslog B threads threads/shared IPC/SysV SDBM_File Storable'
 
             ldflags='-static -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman'
             ccflags='$ccflags -DBIG_TIME -DNO_MATHOMS -Wno-implicit-function-declaration -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-null-pointer-arithmetic -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h -I${{ github.workspace }}/stubs'
@@ -341,7 +366,7 @@ jobs:
             -Dhostgenerate="$PWD/../native/generate_uudmap" \
             -Dprefix="/zeroperl" \
             -Dsysroot="${WASI_SDK_PATH}/share/wasi-sysroot" \
-            -Dstatic_ext="mro File/DosGlob File/Glob Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding B attributes Unicode/Normalize Unicode/Collate threads threads/shared IPC/SysV re Digest/MD5 Digest/SHA SDBM_File Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd Storable List/Util Fcntl Opcode"
+            -Dstatic_ext="mro File/DosGlob File/Glob Sys/Hostname PerlIO/via PerlIO/mmap PerlIO/encoding attributes Unicode/Normalize Unicode/Collate re Digest/MD5 Digest/SHA Math/BigInt/FastCalc Data/Dumper I18N/Langinfo Time/Piece IO Hash/Util/FieldHash Hash/Util Filter/Util/Call Encode/Unicode Encode Encode/JP Encode/KR Encode/EBCDIC Encode/CN Encode/Symbol Encode/Byte Encode/TW Compress/Raw/Zlib Compress/Raw/Bzip2 MIME/Base64 Cwd List/Util Fcntl Opcode"
 
           ln -s $PWD/pod/perldelta.pod .
           ln $PWD/README.* ..
@@ -365,7 +390,7 @@ jobs:
           fi
 
           node ${{ github.workspace }}/tools/delete.js  ${{ github.workspace }}/tools/delete.txt /zeroperl
-
+          if [ "${{ github.event.inputs.trim }}" = "true" ]; then
           PERLSTRIP_BIN="$(realpath ../native/prefix/bin)"
           echo "Perlstrip bin path: $PERLSTRIP_BIN"
           export PATH="$PERLSTRIP_BIN:$PATH"
@@ -375,6 +400,7 @@ jobs:
              echo "Stripping $f with -s..."
              perlstrip -s "$f"
           done
+           fi
 
           mkdir ${{ github.workspace }}/gen
           node ${{ github.workspace }}/tools/sfs.js -i /zeroperl -o ${{ github.workspace }}/gen/zeroperl.h --prefix /zeroperl
@@ -398,7 +424,7 @@ jobs:
             -o zeroperl_unopt \
             -flto=full \
             -O3 \
-            -z stack-size=524288 -Wl,--initial-memory=24772608 \
+            -z stack-size=8388608 -Wl,--initial-memory=32636928 \
             -static \
             -DNO_MATHOMS \
             -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
@@ -409,6 +435,7 @@ jobs:
             -Wno-null-pointer-arithmetic \
             -Wno-incomplete-setjmp-declaration \
             -Wno-incompatible-library-redeclaration \
+            -Wno-int-conversion \
             -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
             -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
             -lwasi-emulated-mman \
@@ -432,24 +459,18 @@ jobs:
             -Wl,--wrap=lseek \
             -Wl,--wrap=stat \
             -Wl,--wrap=fstat \
-            lib/auto/mro/mro.a \
             lib/auto/File/DosGlob/DosGlob.a \
             lib/auto/File/Glob/Glob.a \
             lib/auto/Sys/Hostname/Hostname.a \
             lib/auto/PerlIO/via/via.a \
             lib/auto/PerlIO/mmap/mmap.a \
             lib/auto/PerlIO/encoding/encoding.a \
-            lib/auto/B/B.a \
             lib/auto/attributes/attributes.a \
             lib/auto/Unicode/Normalize/Normalize.a \
             lib/auto/Unicode/Collate/Collate.a \
-            lib/auto/threads/threads.a \
-            lib/auto/threads/shared/shared.a \
-            lib/auto/IPC/SysV/SysV.a \
             lib/auto/re/re.a \
             lib/auto/Digest/MD5/MD5.a \
             lib/auto/Digest/SHA/SHA.a \
-            lib/auto/SDBM_File/SDBM_File.a \
             lib/auto/Math/BigInt/FastCalc/FastCalc.a \
             lib/auto/Data/Dumper/Dumper.a \
             lib/auto/I18N/Langinfo/Langinfo.a \
@@ -471,7 +492,6 @@ jobs:
             lib/auto/Compress/Raw/Bzip2/Bzip2.a \
             lib/auto/MIME/Base64/Base64.a \
             lib/auto/Cwd/Cwd.a \
-            lib/auto/Storable/Storable.a \
             lib/auto/List/Util/Util.a \
             lib/auto/Fcntl/Fcntl.a \
             lib/auto/Opcode/Opcode.a \
@@ -483,8 +503,9 @@ jobs:
             -lwasi-emulated-mman \
             -v \
             -ferror-limit=0
-
-          wasm-opt zeroperl_unopt -O3 --strip-dwarf --enable-bulk-memory --asyncify -o zeroperl.wasm
+            
+          which wasm-opt
+          wasm-opt zeroperl_unopt -Oz --strip-dwarf --enable-bulk-memory --enable-tail-call --asyncify --pass-arg=asyncify-ignore-imports -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
