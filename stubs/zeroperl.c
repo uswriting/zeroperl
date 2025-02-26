@@ -62,7 +62,7 @@ extern FILE *__real_fopen(const char *path, const char *mode);
 extern int __real_fileno(FILE *stream);
 extern int __real_open(const char *path, int flags, ...);
 extern int __real_close(int fd);
-__attribute__((import_module("wasi_snapshot_preview1"), import_name("fd_read"))) extern ssize_t __real_read(int fd, void *buf, size_t count);
+extern ssize_t __real_read(int fd, void *buf, size_t count);
 extern off_t __real_lseek(int fd, off_t offset, int whence);
 extern int __real_access(const char *path, int flags);
 extern int __real_stat(const char *restrict path, struct stat *restrict statbuf);
@@ -560,36 +560,19 @@ int __wrap_fstat(int fd, struct stat *stbuf)
 
 
 
-#define ASYNCIFY_DATA_ADDR ((void*)16)
 /* __wrap_read */
 __attribute__((noinline))
-ssize_t __wrap_read(int fd, void *buf, size_t count) {
-    // Try the synchronous filesystem read first
-    ssize_t sfr = sfs_read(fd, buf, count);
-    if (sfr >= 0) {
-        return sfr; // Return immediately if successful
+ssize_t __wrap_read(int fd, void *buf, size_t count)
+{
+    ssize_t r = sfs_read(fd, buf, count);
+    if (r >= 0)
+    {
+        return r; /* SFS success */
     }
-    
-    ssize_t result;
-    void* asyncify_buf;
-    
-    while (1) {
-        result = __real_read(fd, buf, count);
-    
-        if (asyncify_get_state() != 1) {
-            break;
-        }
-        
-        asyncify_stop_unwind();
-        
-        asyncify_buf = ASYNCIFY_DATA_ADDR;
-        
-        asyncify_start_rewind(asyncify_buf);
-        continue;
-    }
-    
-    return result;
+    /* fallback => real read. */
+    return __real_read(fd, buf, count);
 }
+
 
 /* __wrap_lseek */
 __attribute__((noinline))

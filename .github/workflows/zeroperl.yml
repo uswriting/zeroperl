@@ -505,7 +505,7 @@ jobs:
             -ferror-limit=0
             
           which wasm-opt
-          wasm-opt zeroperl_unopt -O2 --strip-dwarf --enable-bulk-memory --asyncify --pass-arg=asyncify-imports@wasi_snapshot_preview1.fd_read -o zeroperl.wasm
+          wasm-opt zeroperl_unopt -Oz --strip-dwarf --enable-bulk-memory --enable-tail-call --asyncify --pass-arg=asyncify-ignore-imports -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
