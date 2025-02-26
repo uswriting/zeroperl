@@ -609,7 +609,7 @@ int __wrap_fileno(FILE *stream)
     return realfd; /* might be negative if real fileno fails. */
 }
 // real
-int real_pmain(int argc, char *argv[])
+int real_main(int argc, char *argv[])
 {
     int exitstatus;
 
@@ -641,9 +641,16 @@ int real_pmain(int argc, char *argv[])
     return exitstatus;
 }
 
+int real_real_main(int argc, char **argv)
+{
+    return asyncjmp_rt_start(real_main, argc, argv);
+}
+
+static int (*volatile indirect_main)(int, char **) = real_real_main;
+
 int main(int argc, char **argv)
 {
-    return asyncjmp_rt_start(real_pmain, argc, argv);
+    return indirect_main(argc, argv);
 }
 
 /* -------------------------------------------------------------------------
