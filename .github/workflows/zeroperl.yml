@@ -54,34 +54,15 @@ jobs:
           version: latest
           platform: x64
 
-      - name: Cache Binaryen Source and Build
-        id: cache-binaryen
-        uses: actions/cache@v4
-        with:
-          path: |
-            binaryen/bin
-            binaryen/lib
-          key: ${{ runner.os }}-binaryen
-
-      - name: Build Patched Binaryen
-        if: steps.cache-binaryen.outputs.cache-hit != 'true'
-        run: |
-            git clone https://github.com/WebAssembly/binaryen.git
-            cd binaryen
-            git checkout version_122
-            git submodule init
-            git submodule update
-            patch ./src/passes/Asyncify.cpp $GITHUB_WORKSPACE/patches/asyncify.patch
-            cmake . && make -j4
-
       - name: Install Binaryen
         run: |
-          sudo cp binaryen/bin/* /opt/
-          sudo cp binaryen/lib/* /usr/local/lib
-          sudo ldconfig
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz -o binaryen.tar.gz
+          tar -xzf binaryen.tar.gz
+          sudo cp binaryen-version_121/bin/* /opt/
+          rm -rf binaryen.tar.gz binaryen-version_121
           echo "/opt" >> $GITHUB_PATH
 
-      - name: Install Binaryen
+      - name: Test Binaryen
         run: |
           which wasm-opt
           wasm-opt --version
@@ -326,6 +307,13 @@ jobs:
       - name: Install Perl (WASI build)
         shell: bash
         run: |
+
+          # https://github.com/ruby/ruby/blob/237ab21f25b0a062ce6a272e0586d00778a6f20b/tool/wasm-clangw
+          sudo mv /opt/wasm-opt /opt/wasm-opt-backup
+          sudo mv ./tools/wasm-opt /opt/wasm-opt
+          sudo chmod +x /opt/wasm-opt
+
+
           WASI_BIN=$PWD/wasi-bin
           chmod +x $WASI_BIN/wasic $WASI_BIN/wasimake $WASI_BIN/wasiconfigure
           export WASI_SDK_PATH=/opt/wasi-sdk
@@ -409,103 +397,170 @@ jobs:
           current_dir=$(pwd)
 
           cd ${{ github.workspace }}/stubs
-          wasic -O3 -c machine.c -o machine.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c runtime.c -o runtime.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c setjmp.c -o setjmp.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c machine_core.S -o machine_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
-          wasic -O3 -c setjmp_core.S -o setjmp_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -flto -O3 -c machine.c -o machine.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -flto -O3 -c runtime.c -o runtime.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -flto -O3 -c setjmp.c -o setjmp.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -flto -O3 -c machine_core.S -o machine_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
+          wasic -flto -O3 -c setjmp_core.S -o setjmp_core.o #-DASYNCJMP_ENABLE_DEBUG_LOG
           "${WASI_SDK_PATH}/bin/llvm-ar" crs libasyncjmp.a \
           machine.o runtime.o setjmp.o \
           machine_core.o setjmp_core.o
           cd $current_dir
 
+          wasic \
+          -c \
+          -O3 \
+          -flto \
+          -DNO_MATHOMS \
+          -D_WASI_EMULATED_PROCESS_CLOCKS \
+          -D_WASI_EMULATED_GETPID \
+          -D_GNU_SOURCE \
+          -D_POSIX_C_SOURCE \
+          -DBIG_TIME \
+          -Wno-implicit-function-declaration \
+          -Wno-null-pointer-arithmetic \
+          -Wno-incomplete-setjmp-declaration \
+          -Wno-incompatible-library-redeclaration \
+          -Wno-int-conversion \
+          -D_WASI_EMULATED_SIGNAL \
+          -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
+          -I. \
+          -I ${{ github.workspace }}/stubs \
+          -I ${{ github.workspace }}/gen \
+          -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
+          zeroperl.c \
+          -o zeroperl.o
+
 
           wasic \
-            -o zeroperl_unopt \
-            -flto=full \
-            -O3 \
-            -z stack-size=8388608 -Wl,--initial-memory=32636928 \
-            -static \
-            -DNO_MATHOMS \
-            -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
-            -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
-            -D_GNU_SOURCE -D_POSIX_C_SOURCE \
-            -DBIG_TIME \
-            -Wno-implicit-function-declaration \
-            -Wno-null-pointer-arithmetic \
-            -Wno-incomplete-setjmp-declaration \
-            -Wno-incompatible-library-redeclaration \
-            -Wno-int-conversion \
-            -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
-            -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
-            -lwasi-emulated-mman \
-            -I. \
-            -I ${{ github.workspace }}/stubs \
-            -I ${{ github.workspace }}/gen \
-            -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
-            -Wl,--strip-all \
-            -Wl,--allow-undefined \
-            \
-            ${{ github.workspace }}/stubs/stubs.c \
-            ${{ github.workspace }}/gen/zeroperl_data.c \
-            zeroperl.c \
-            \
-            -Wl,--whole-archive ${{ github.workspace }}/stubs/libasyncjmp.a -Wl,--no-whole-archive \
-            -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
-            -Wl,--wrap=fopen \
-            -Wl,--wrap=open \
-            -Wl,--wrap=close \
-            -Wl,--wrap=read \
-            -Wl,--wrap=lseek \
-            -Wl,--wrap=stat \
-            -Wl,--wrap=fstat \
-            lib/auto/File/DosGlob/DosGlob.a \
-            lib/auto/File/Glob/Glob.a \
-            lib/auto/Sys/Hostname/Hostname.a \
-            lib/auto/PerlIO/via/via.a \
-            lib/auto/PerlIO/mmap/mmap.a \
-            lib/auto/PerlIO/encoding/encoding.a \
-            lib/auto/attributes/attributes.a \
-            lib/auto/Unicode/Normalize/Normalize.a \
-            lib/auto/Unicode/Collate/Collate.a \
-            lib/auto/re/re.a \
-            lib/auto/Digest/MD5/MD5.a \
-            lib/auto/Digest/SHA/SHA.a \
-            lib/auto/Math/BigInt/FastCalc/FastCalc.a \
-            lib/auto/Data/Dumper/Dumper.a \
-            lib/auto/I18N/Langinfo/Langinfo.a \
-            lib/auto/Time/Piece/Piece.a \
-            lib/auto/IO/IO.a \
-            lib/auto/Hash/Util/FieldHash/FieldHash.a \
-            lib/auto/Hash/Util/Util.a \
-            lib/auto/Filter/Util/Call/Call.a \
-            lib/auto/Encode/Unicode/Unicode.a \
-            lib/auto/Encode/Encode.a \
-            lib/auto/Encode/JP/JP.a \
-            lib/auto/Encode/KR/KR.a \
-            lib/auto/Encode/EBCDIC/EBCDIC.a \
-            lib/auto/Encode/CN/CN.a \
-            lib/auto/Encode/Symbol/Symbol.a \
-            lib/auto/Encode/Byte/Byte.a \
-            lib/auto/Encode/TW/TW.a \
-            lib/auto/Compress/Raw/Zlib/Zlib.a \
-            lib/auto/Compress/Raw/Bzip2/Bzip2.a \
-            lib/auto/MIME/Base64/Base64.a \
-            lib/auto/Cwd/Cwd.a \
-            lib/auto/List/Util/Util.a \
-            lib/auto/Fcntl/Fcntl.a \
-            lib/auto/Opcode/Opcode.a \
-            `cat ext.libs` \
-            -lm \
-            -lwasi-emulated-signal \
-            -lwasi-emulated-getpid \
-            -lwasi-emulated-process-clocks \
-            -lwasi-emulated-mman \
-            -v \
-            -ferror-limit=0
+          -c \
+          -O3 \
+          -flto \
+          -DNO_MATHOMS \
+          -D_WASI_EMULATED_PROCESS_CLOCKS \
+          -D_WASI_EMULATED_GETPID \
+          -D_GNU_SOURCE \
+          -D_POSIX_C_SOURCE \
+          -DBIG_TIME \
+          -Wno-implicit-function-declaration \
+          -Wno-null-pointer-arithmetic \
+          -Wno-incomplete-setjmp-declaration \
+          -Wno-incompatible-library-redeclaration \
+          -Wno-int-conversion \
+          -D_WASI_EMULATED_SIGNAL \
+          -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
+          -I. \
+          -I ${{ github.workspace }}/stubs \
+          -I ${{ github.workspace }}/gen \
+          -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
+          ${{ github.workspace }}/stubs/stubs.c \
+          -o stubs.o
+
+
+          wasic \
+          -c \
+          -O3 \
+          -flto \
+          -DNO_MATHOMS \
+          -D_WASI_EMULATED_PROCESS_CLOCKS \
+          -D_WASI_EMULATED_GETPID \
+          -D_GNU_SOURCE \
+          -D_POSIX_C_SOURCE \
+          -DBIG_TIME \
+          -Wno-implicit-function-declaration \
+          -Wno-null-pointer-arithmetic \
+          -Wno-incomplete-setjmp-declaration \
+          -Wno-incompatible-library-redeclaration \
+          -Wno-int-conversion \
+          -D_WASI_EMULATED_SIGNAL \
+          -include /opt/wasi-sdk/share/wasi-sysroot/include/wasm32-wasi/fcntl.h \
+          -I. \
+          -I ${{ github.workspace }}/stubs \
+          -I ${{ github.workspace }}/gen \
+          -cxx-isystem /opt/wasi-sdk/share/wasi-sysroot/include \
+          ${{ github.workspace }}/gen/zeroperl_data.c \
+          -o zeroperl_data.o
+
+
+          wasic \
+          -o zeroperl_unopt \
+          -flto \
+          -g \
+          -z stack-size=8388608 -Wl,--initial-memory=32636928 \
+          -static \
+          -DNO_MATHOMS \
+          -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks \
+          -D_WASI_EMULATED_GETPID -lwasi-emulated-getpid \
+          -D_GNU_SOURCE -D_POSIX_C_SOURCE \
+          -DBIG_TIME \
+          -D_WASI_EMULATED_SIGNAL -lwasi-emulated-signal \
+          -lwasi-emulated-mman \
+          -Wl,--strip-all \
+          -Wl,--allow-undefined \
+          \
+          zeroperl.o \
+          stubs.o \
+          zeroperl_data.o \
+          \
+          -Wl,--whole-archive ${{ github.workspace }}/stubs/libasyncjmp.a -Wl,--no-whole-archive \
+          -Wl,--whole-archive libperl.a -Wl,--no-whole-archive \
+          -Wl,--wrap=fopen \
+          -Wl,--wrap=open \
+          -Wl,--wrap=close \
+          -Wl,--wrap=read \
+          -Wl,--wrap=lseek \
+          -Wl,--wrap=stat \
+          -Wl,--wrap=fstat \
+          lib/auto/File/DosGlob/DosGlob.a \
+          lib/auto/File/Glob/Glob.a \
+          lib/auto/Sys/Hostname/Hostname.a \
+          lib/auto/PerlIO/via/via.a \
+          lib/auto/PerlIO/mmap/mmap.a \
+          lib/auto/PerlIO/encoding/encoding.a \
+          lib/auto/attributes/attributes.a \
+          lib/auto/Unicode/Normalize/Normalize.a \
+          lib/auto/Unicode/Collate/Collate.a \
+          lib/auto/re/re.a \
+          lib/auto/Digest/MD5/MD5.a \
+          lib/auto/Digest/SHA/SHA.a \
+          lib/auto/Math/BigInt/FastCalc/FastCalc.a \
+          lib/auto/Data/Dumper/Dumper.a \
+          lib/auto/I18N/Langinfo/Langinfo.a \
+          lib/auto/Time/Piece/Piece.a \
+          lib/auto/IO/IO.a \
+          lib/auto/Hash/Util/FieldHash/FieldHash.a \
+          lib/auto/Hash/Util/Util.a \
+          lib/auto/Filter/Util/Call/Call.a \
+          lib/auto/Encode/Unicode/Unicode.a \
+          lib/auto/Encode/Encode.a \
+          lib/auto/Encode/JP/JP.a \
+          lib/auto/Encode/KR/KR.a \
+          lib/auto/Encode/EBCDIC/EBCDIC.a \
+          lib/auto/Encode/CN/CN.a \
+          lib/auto/Encode/Symbol/Symbol.a \
+          lib/auto/Encode/Byte/Byte.a \
+          lib/auto/Encode/TW/TW.a \
+          lib/auto/Compress/Raw/Zlib/Zlib.a \
+          lib/auto/Compress/Raw/Bzip2/Bzip2.a \
+          lib/auto/MIME/Base64/Base64.a \
+          lib/auto/Cwd/Cwd.a \
+          lib/auto/List/Util/Util.a \
+          lib/auto/Fcntl/Fcntl.a \
+          lib/auto/Opcode/Opcode.a \
+          `cat ext.libs` \
+          -lm \
+          -lwasi-emulated-signal \
+          -lwasi-emulated-getpid \
+          -lwasi-emulated-process-clocks \
+          -lwasi-emulated-mman \
+          -v \
+          -ferror-limit=0
+          
+          sudo rm -f /opt/wasm-opt
+          sudo mv /opt/wasm-opt-backup /opt/wasm-opt
             
           which wasm-opt
-          wasm-opt zeroperl_unopt -Oz --strip-dwarf --enable-bulk-memory --enable-tail-call --asyncify --pass-arg=asyncify-ignore-imports -o zeroperl.wasm
+          wasm-opt zeroperl_unopt -Oz -g --strip-dwarf --enable-bulk-memory --enable-tail-call --asyncify --pass-arg=asyncify-imports@wasi_snapshot_preview1.fd_read -o zeroperl.wasm
 
       - name: Upload Prefix (WASI build)
         uses: actions/upload-artifact@v4
